@@ -128,11 +128,12 @@
     let model;
     async function loadModel() {
       try {
-        const modelURL = location.origin + '/model/model.json';
-        model = await tf.loadLayersModel(modelURL);
-        document.getElementById('status').innerText = 'Status: Model loaded successfully ✅';
+const modelURL = 'https://raw.githubusercontent.com/SmaranNadig/retrack-website/main/model/model.json';
+model = await tf.loadLayersModel(modelURL);
+
+        document.getElementById('status').innerText = 'Status: Model loaded successfully';
       } catch (error) {
-        document.getElementById('status').innerText = `Status: Model load error ❌ - ${error.message}`;
+        document.getElementById('status').innerText = `Status: Model load error  - ${error.message}`;
         console.error('Model load error:', error);
       }
     }
