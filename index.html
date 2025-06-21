@@ -13,7 +13,6 @@
       box-sizing: border-box;
       font-family: 'Inter', sans-serif;
     }
-
     body {
       background-color: #f9fafa;
       color: #1f2937;
@@ -22,19 +21,16 @@
       align-items: center;
       padding: 40px 20px;
     }
-
     h1 {
       font-size: 2.5rem;
       font-weight: 600;
       margin-bottom: 10px;
     }
-
     p.subtitle {
       font-size: 1.1rem;
       margin-bottom: 25px;
       color: #4b5563;
     }
-
     .upload-container {
       display: flex;
       flex-direction: column;
@@ -43,7 +39,6 @@
       width: 100%;
       max-width: 400px;
     }
-
     input[type="file"],
     input[type="text"] {
       padding: 12px 14px;
@@ -52,7 +47,6 @@
       border-radius: 8px;
       width: 100%;
     }
-
     button {
       padding: 12px;
       background-color: #10b981;
@@ -63,11 +57,9 @@
       cursor: pointer;
       transition: background-color 0.3s ease;
     }
-
     button:hover {
       background-color: #059669;
     }
-
     #preview {
       margin-top: 20px;
       max-width: 300px;
@@ -75,30 +67,25 @@
       border: 2px solid #e5e7eb;
       display: none;
     }
-
     .output {
       margin-top: 20px;
       text-align: center;
     }
-
     .output p {
       font-size: 1.1rem;
       margin: 5px 0;
     }
-
     #status {
       margin-top: 15px;
       font-size: 0.95rem;
       color: #6b7280;
     }
-
     .dashboard-link {
       margin-top: 30px;
       font-size: 1rem;
       color: #2563eb;
       text-decoration: none;
     }
-
     .dashboard-link:hover {
       text-decoration: underline;
     }
@@ -113,10 +100,9 @@
     <input type="text" id="imageUrl" placeholder="Or paste public image URL (e.g., Imgur)">
     <button onclick="classify()"> Classify Image</button>
     <button onclick="startCamera()">📸 Use Camera</button>
-<video id="camera" autoplay playsinline width="300" style="display:none; border-radius: 8px; border: 2px solid #ccc;"></video>
-<button onclick="captureFromCamera()" id="captureBtn" style="display:none;">Capture</button>
-<canvas id="canvas" style="display:none;"></canvas>
-
+    <video id="camera" autoplay playsinline width="300" style="display:none; border-radius: 8px; border: 2px solid #ccc;"></video>
+    <button onclick="captureFromCamera()" id="captureBtn" style="display:none;">Capture</button>
+    <canvas id="canvas" style="display:none;"></canvas>
   </div>
 
   <img id="preview" alt="Image Preview">
@@ -131,63 +117,123 @@
 
   <script>
     let model;
+    let videoStream;
+
     async function loadModel() {
       try {
-const modelURL = 'https://raw.githubusercontent.com/SmaranNadig/retrack-website/main/model/model.json';
-model = await tf.loadLayersModel(modelURL);
-
-        document.getElementById('status').innerText = 'Status: Model loaded successfully';
+        const modelURL = 'https://raw.githubusercontent.com/SmaranNadig/retrack-website/main/model/model.json';
+        model = await tf.loadLayersModel(modelURL);
+        document.getElementById('status').innerText = 'Status: Model loaded successfully ✅';
       } catch (error) {
-        document.getElementById('status').innerText = `Status: Model load error  - ${error.message}`;
+        document.getElementById('status').innerText = `Status: Model load error ❌ - ${error.message}`;
         console.error('Model load error:', error);
       }
     }
     loadModel();
 
-   
-  let model;
-  let videoStream;
+    async function classify() {
+      const fileInput = document.getElementById('imageInput');
+      const imageUrl = document.getElementById('imageUrl').value.trim();
+      const img = document.getElementById('preview');
 
-  async function loadModel() {
-    try {
-      const modelURL = 'https://raw.githubusercontent.com/SmaranNadig/retrack-website/main/model/model.json';
-      model = await tf.loadLayersModel(modelURL);
-      document.getElementById('status').innerText = 'Status: Model loaded successfully ✅';
-    } catch (error) {
-      document.getElementById('status').innerText = `Status: Model load error ❌ - ${error.message}`;
-      console.error('Model load error:', error);
+      if (!fileInput.files[0] && !imageUrl) {
+        alert('Please upload an image or enter an image URL.');
+        document.getElementById('status').innerText = 'Status: No image provided';
+        return;
+      }
+
+      document.getElementById('status').innerText = 'Status: Classifying... ⏳';
+
+      if (fileInput.files[0]) {
+        img.src = URL.createObjectURL(fileInput.files[0]);
+      } else {
+        img.src = imageUrl;
+      }
+
+      img.style.display = 'block';
+
+      img.onload = async () => {
+        try {
+          const image = tf.browser.fromPixels(img);
+          const resized = tf.image.resizeBilinear(image, [224, 224]);
+          const normalized = resized.div(255.0);
+          const batched = normalized.expandDims(0);
+
+          const prediction = await model.predict(batched).data();
+          const maxIndex = prediction.indexOf(Math.max(...prediction));
+          const labels = ['Refundable', 'Partially Refundable', 'Non-Refundable'];
+          const result = labels[maxIndex];
+          const confidence = prediction[maxIndex];
+
+          document.getElementById('result').innerText = `🧾 Result: ${result}`;
+          document.getElementById('confidence').innerText = `📊 Confidence: ${(confidence * 100).toFixed(2)}%`;
+          document.getElementById('status').innerText = 'Status: Classification complete ✅';
+
+          sendToThingSpeak(result, confidence, imageUrl || 'uploaded image');
+        } catch (error) {
+          document.getElementById('status').innerText = `Status: Classification error ❌ - ${error.message}`;
+          console.error('Classification error:', error);
+        }
+      };
     }
-  }
-  loadModel();
 
-  async function classify() {
-    const fileInput = document.getElementById('imageInput');
-    const imageUrl = document.getElementById('imageUrl').value.trim();
-    const img = document.getElementById('preview');
+    function sendToThingSpeak(result, confidence, imageSource) {
+      const apiKey = 'ORZJ88EUT7HLBIQC';
+      const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field5=${encodeURIComponent(result)}&field6=${confidence}&status=${encodeURIComponent(imageSource)}`;
 
-    if (!fileInput.files[0] && !imageUrl) {
-      alert('Please upload an image or enter an image URL.');
-      document.getElementById('status').innerText = 'Status: No image provided';
-      return;
+      fetch(url)
+        .then(response => {
+          if (response.ok) {
+            document.getElementById('status').innerText += ' | Data sent to ThingSpeak ✅';
+          } else {
+            document.getElementById('status').innerText += ` | ThingSpeak error ❌ - ${response.status}`;
+          }
+        })
+        .catch(error => {
+          document.getElementById('status').innerText += ` | Network error ❌ - ${error.message}`;
+          console.error('Network error:', error);
+        });
     }
 
-    document.getElementById('status').innerText = 'Status: Classifying... ⏳';
+    function startCamera() {
+      const video = document.getElementById('camera');
+      const captureBtn = document.getElementById('captureBtn');
 
-    if (fileInput.files[0]) {
-      img.src = URL.createObjectURL(fileInput.files[0]);
-    } else {
-      img.src = imageUrl;
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(stream => {
+          video.srcObject = stream;
+          videoStream = stream;
+          video.style.display = 'block';
+          captureBtn.style.display = 'inline-block';
+          document.getElementById('status').innerText = 'Status: Camera active 🎥';
+        })
+        .catch(error => {
+          document.getElementById('status').innerText = `Status: Camera error ❌ - ${error.message}`;
+          console.error('Camera error:', error);
+        });
     }
 
-    img.style.display = 'block';
+    async function captureFromCamera() {
+      const video = document.getElementById('camera');
+      const canvas = document.getElementById('canvas');
+      const context = canvas.getContext('2d');
 
-    img.onload = async () => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0);
+
+      const preview = document.getElementById('preview');
+      preview.src = canvas.toDataURL('image/jpeg');
+      preview.style.display = 'block';
+
+      const imgTensor = tf.browser.fromPixels(canvas);
+      const resized = tf.image.resizeBilinear(imgTensor, [224, 224]);
+      const normalized = resized.div(255.0);
+      const batched = normalized.expandDims(0);
+
+      document.getElementById('status').innerText = 'Status: Classifying camera image... ⏳';
+
       try {
-        const image = tf.browser.fromPixels(img);
-        const resized = tf.image.resizeBilinear(image, [224, 224]);
-        const normalized = resized.div(255.0);
-        const batched = normalized.expandDims(0);
-
         const prediction = await model.predict(batched).data();
         const maxIndex = prediction.indexOf(Math.max(...prediction));
         const labels = ['Refundable', 'Partially Refundable', 'Non-Refundable'];
@@ -198,89 +244,12 @@ model = await tf.loadLayersModel(modelURL);
         document.getElementById('confidence').innerText = `📊 Confidence: ${(confidence * 100).toFixed(2)}%`;
         document.getElementById('status').innerText = 'Status: Classification complete ✅';
 
-        sendToThingSpeak(result, confidence, imageUrl || 'uploaded image');
+        sendToThingSpeak(result, confidence, 'captured-by-camera');
       } catch (error) {
         document.getElementById('status').innerText = `Status: Classification error ❌ - ${error.message}`;
-        console.error('Classification error:', error);
+        console.error('Camera classification error:', error);
       }
-    };
-  }
-
-  function sendToThingSpeak(result, confidence, imageSource) {
-    const apiKey = 'ORZJ88EUT7HLBIQC';
-    const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field5=${encodeURIComponent(result)}&field6=${confidence}&status=${encodeURIComponent(imageSource)}`;
-
-    fetch(url)
-      .then(response => {
-        if (response.ok) {
-          document.getElementById('status').innerText += ' | Data sent to ThingSpeak ✅';
-        } else {
-          document.getElementById('status').innerText += ` | ThingSpeak error ❌ - ${response.status}`;
-        }
-      })
-      .catch(error => {
-        document.getElementById('status').innerText += ` | Network error ❌ - ${error.message}`;
-        console.error('Network error:', error);
-      });
-  }
-
-  function startCamera() {
-    const video = document.getElementById('camera');
-    const captureBtn = document.getElementById('captureBtn');
-
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-      .then(stream => {
-        video.srcObject = stream;
-        videoStream = stream;
-        video.style.display = 'block';
-        captureBtn.style.display = 'inline-block';
-        document.getElementById('status').innerText = 'Status: Camera active 🎥';
-      })
-      .catch(error => {
-        document.getElementById('status').innerText = `Status: Camera error ❌ - ${error.message}`;
-        console.error('Camera error:', error);
-      });
-  }
-
-  async function captureFromCamera() {
-    const video = document.getElementById('camera');
-    const canvas = document.getElementById('canvas');
-    const context = canvas.getContext('2d');
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0);
-
-    const preview = document.getElementById('preview');
-    preview.src = canvas.toDataURL('image/jpeg');
-    preview.style.display = 'block';
-
-    const imgTensor = tf.browser.fromPixels(canvas);
-    const resized = tf.image.resizeBilinear(imgTensor, [224, 224]);
-    const normalized = resized.div(255.0);
-    const batched = normalized.expandDims(0);
-
-    document.getElementById('status').innerText = 'Status: Classifying camera image... ⏳';
-
-    try {
-      const prediction = await model.predict(batched).data();
-      const maxIndex = prediction.indexOf(Math.max(...prediction));
-      const labels = ['Refundable', 'Partially Refundable', 'Non-Refundable'];
-      const result = labels[maxIndex];
-      const confidence = prediction[maxIndex];
-
-      document.getElementById('result').innerText = `🧾 Result: ${result}`;
-      document.getElementById('confidence').innerText = `📊 Confidence: ${(confidence * 100).toFixed(2)}%`;
-      document.getElementById('status').innerText = 'Status: Classification complete ✅';
-
-      sendToThingSpeak(result, confidence, 'captured-by-camera');
-    } catch (error) {
-      document.getElementById('status').innerText = `Status: Classification error ❌ - ${error.message}`;
-      console.error('Camera classification error:', error);
     }
-  }
-</script>
-
   </script>
 </body>
 </html>
