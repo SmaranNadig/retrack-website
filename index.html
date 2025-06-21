@@ -30,7 +30,7 @@
     const readApiKey = 'ORZJ88EUT7HLBIQC';
     async function fetchData() {
       try {
-        const url = `https://api.thingspeak.com/channels/${channelId}/feeds.json?api_key=${readApiKey}&results=1`;
+        const url = `https://api.thingspeak.com/channels/${2994468}/feeds.json?api_key=${ORZJ88EUT7HLBIQCy}&results=1`;
         const response = await fetch(url);
         const data = await response.json();
         const feed = data.feeds[0];
