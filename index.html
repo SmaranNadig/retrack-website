@@ -96,8 +96,8 @@
   <p class="subtitle">Classify product returns: Refundable, Partial, or Non-Refundable</p>
 
   <div class="upload-container">
-    <input type="file" id="imageInput" accept="image/*">
-    <input type="text" id="imageUrl" placeholder="Or paste public image URL (e.g., Imgur)">
+   <input type="file" id="imageInput" accept="image/*" style="display: none;">
+<button onclick="document.getElementById('imageInput').click()"> Upload from Gallery</button>
     <button onclick="classify()"> Classify Image</button>
     <button onclick="startCamera()">📸 Use Camera</button>
     <video id="camera" autoplay playsinline width="300" style="display:none; border-radius: 8px; border: 2px solid #ccc;"></video>
