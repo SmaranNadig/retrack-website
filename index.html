@@ -112,6 +112,11 @@
     <input type="file" id="imageInput" accept="image/*" capture="environment">
     <input type="text" id="imageUrl" placeholder="Or paste public image URL (e.g., Imgur)">
     <button onclick="classify()"> Classify Image</button>
+    <button onclick="startCamera()">📸 Use Camera</button>
+<video id="camera" autoplay playsinline width="300" style="display:none; border-radius: 8px; border: 2px solid #ccc;"></video>
+<button onclick="captureFromCamera()" id="captureBtn" style="display:none;">Capture</button>
+<canvas id="canvas" style="display:none;"></canvas>
+
   </div>
 
   <img id="preview" alt="Image Preview">
@@ -200,6 +205,63 @@ model = await tf.loadLayersModel(modelURL);
           document.getElementById('status').innerText += ` | Network error ❌ - ${error.message}`;
           console.error('Network error:', error);
         });
+      let videoStream;
+
+function startCamera() {
+  const video = document.getElementById('camera');
+  const captureBtn = document.getElementById('captureBtn');
+  navigator.mediaDevices.getUserMedia({ video: true })
+    .then(stream => {
+      video.srcObject = stream;
+      video.style.display = 'block';
+      captureBtn.style.display = 'inline-block';
+      videoStream = stream;
+      document.getElementById('status').innerText = 'Status: Camera active 🎥';
+    })
+    .catch(err => {
+      document.getElementById('status').innerText = 'Status: Camera access denied ❌';
+      console.error('Camera error:', err);
+    });
+}
+
+async function captureFromCamera() {
+  const video = document.getElementById('camera');
+  const canvas = document.getElementById('canvas');
+  const context = canvas.getContext('2d');
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  context.drawImage(video, 0, 0);
+
+  const imgData = tf.browser.fromPixels(canvas);
+  const resized = tf.image.resizeBilinear(imgData, [224, 224]);
+  const normalized = resized.div(255.0);
+  const batched = normalized.expandDims(0);
+
+  document.getElementById('status').innerText = 'Status: Classifying camera image... ⏳';
+
+  try {
+    const prediction = await model.predict(batched).data();
+    const maxIndex = prediction.indexOf(Math.max(...prediction));
+    const labels = ['Refundable', 'Partially Refundable', 'Non-Refundable'];
+    const result = labels[maxIndex];
+    const confidence = prediction[maxIndex];
+
+    const preview = document.getElementById('preview');
+    preview.src = canvas.toDataURL('image/jpeg');
+    preview.style.display = 'block';
+
+    document.getElementById('result').innerText = `🧾 Result: ${result}`;
+    document.getElementById('confidence').innerText = `📊 Confidence: ${(confidence * 100).toFixed(2)}%`;
+    document.getElementById('status').innerText = 'Status: Classification complete ✅';
+
+    sendToThingSpeak(result, confidence, 'captured-by-camera');
+  } catch (error) {
+    document.getElementById('status').innerText = `Status: Classification error ❌ - ${error.message}`;
+    console.error('Camera classification error:', error);
+  }
+}
+
     }
   </script>
 </body>
