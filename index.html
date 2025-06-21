@@ -144,68 +144,7 @@ model = await tf.loadLayersModel(modelURL);
     }
     loadModel();
 
-    async function classify() {
-      const fileInput = document.getElementById('imageInput');
-      const imageUrl = document.getElementById('imageUrl').value.trim();
-      const img = document.getElementById('preview');
-
-      if (!fileInput.files[0] && !imageUrl) {
-        alert('Please upload an image or enter an image URL.');
-        document.getElementById('status').innerText = 'Status: No image provided';
-        return;
-      }
-
-      document.getElementById('status').innerText = 'Status: Classifying... ⏳';
-
-      if (fileInput.files[0]) {
-        img.src = URL.createObjectURL(fileInput.files[0]);
-      } else {
-        img.src = imageUrl;
-      }
-      img.style.display = 'block';
-
-      img.onload = async () => {
-        try {
-          const image = tf.browser.fromPixels(img);
-          const resized = tf.image.resizeBilinear(image, [224, 224]);
-          const normalized = resized.div(255.0);
-          const batched = normalized.expandDims(0);
-
-          const prediction = await model.predict(batched).data();
-          const maxIndex = prediction.indexOf(Math.max(...prediction));
-          const labels = ['Refundable', 'Partially Refundable', 'Non-Refundable'];
-          const result = labels[maxIndex];
-          const confidence = prediction[maxIndex];
-
-          document.getElementById('result').innerText = `🧾 Result: ${result}`;
-          document.getElementById('confidence').innerText = `📊 Confidence: ${(confidence * 100).toFixed(2)}%`;
-          document.getElementById('status').innerText = 'Status: Classification complete ✅';
-
-          sendToThingSpeak(result, confidence, imageUrl || 'uploaded image');
-        } catch (error) {
-          document.getElementById('status').innerText = `Status: Classification error ❌ - ${error.message}`;
-          console.error('Classification error:', error);
-        }
-      };
-    }
-
-    function sendToThingSpeak(result, confidence, imageSource) {
-      const apiKey = 'ORZJ88EUT7HLBIQC';
-      const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field5=${encodeURIComponent(result)}&field6=${confidence}&status=${encodeURIComponent(imageSource)}`;
-
-      fetch(url)
-        .then(response => {
-          if (response.ok) {
-            document.getElementById('status').innerText += ' | Data sent to ThingSpeak ✅';
-          } else {
-            document.getElementById('status').innerText += ` | ThingSpeak error ❌ - ${response.status}`;
-          }
-        })
-        .catch(error => {
-          document.getElementById('status').innerText += ` | Network error ❌ - ${error.message}`;
-          console.error('Network error:', error);
-        });
-     <script>
+   
   let model;
   let videoStream;
 
