@@ -3,66 +3,93 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ReTrack Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <title>ReTrack </title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; text-align: center; margin: 20px; background-color: #f0f0f0; }
-    h1, h2 { color: #333; }
-    canvas { max-width: 400px; margin: 20px auto; background-color: white; padding: 10px; }
-    img { max-width: 300px; border: 2px solid #ddd; margin: 10px; }
-    p { font-size: 18px; color: #555; }
-    a { color: #4BC0C0; text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    h1 { color: #333; }
+    input, button { margin: 10px; padding: 8px; font-size: 16px; }
+    button { background-color: #4BC0C0; color: white; border: none; cursor: pointer; }
+    button:hover { background-color: #3aa0a0; }
+    img { max-width: 300px; margin: 10px; border: 2px solid #ddd; }
+    p { font-size: 18px; }
+    #status { color: #555; }
   </style>
 </head>
 <body>
-  <h1>ReTrack Return Dashboard</h1>
-  <p>View real-time sensor data, classification results, and decisions</p>
-  <canvas id="sensorChart"></canvas>
-  <h2>Classified Image</h2>
-  <img id="returnImage" alt="No image available">
-  <p id="classification">Classification: Waiting...</p>
-  <p id="confidence">Confidence: Waiting...</p>
-  <p id="decision">Decision: Waiting...</p>
-  <p><a href="index.html">Classify Another Image</a></p>
+  <h1>ReTrack Return Classifier</h1>
+  <p>Upload an image to classify returns (e.g., Refundable, Partially refundable, Non-Refundable)</p>
+  <input type="file" id="imageInput" accept="image/*">
+  <input type="text" id="imageUrl" placeholder="Paste public image URL (e.g., Imgur link)">
+  <button onclick="classify()">Classify Image</button>
+  <p id="status">Status: Ready</p>
+  <img id="preview" style="display:none">
+  <p id="result"></p>
+  <p id="confidence"></p>
+  <p><a href="dashboard.html">View Dashboard</a></p>
   <script>
-    const channelId = '2994468';
-    const readApiKey = 'ORZJ88EUT7HLBIQC';
-    async function fetchData() {
+    let model;
+    async function loadModel() {
       try {
-        const url = `https://api.thingspeak.com/channels/${2994468}/feeds.json?api_key=${ORZJ88EUT7HLBIQCy}&results=1`;
-        const response = await fetch(url);
-        const data = await response.json();
-        const feed = data.feeds[0];
-        document.getElementById('returnImage').src = feed.status || '';
-        document.getElementById('classification').innerText = `Classification: ${feed.field5 || 'N/A'}`;
-        document.getElementById('confidence').innerText = `Confidence: ${feed.field6 ? (feed.field6 * 100).toFixed(2) + '%' : 'N/A'}`;
-        document.getElementById('decision').innerText = `Decision: ${feed.field7 || 'N/A'}`;
-        new Chart(document.getElementById('sensorChart'), {
-          type: 'line',
-          data: {
-            labels: ['Temperature', 'Humidity', 'Shock', 'Light'],
-            datasets: [{
-              label: 'Sensor Data',
-              data: [feed.field1, feed.field2, feed.field3, feed.field4],
-              borderColor: '#4BC0C0',
-              backgroundColor: '#4BC0C0',
-              fill: false,
-              pointBackgroundColor: '#4BC0C0'
-            }]
-          },
-          options: {
-            scales: { y: { beginAtZero: true } },
-            plugins: { legend: { display: true } }
-          }
-        });
+        model = await tf.loadLayersModel('/model/model.json');
+        document.getElementById('status').innerText = 'Status: Model loaded successfully';
       } catch (error) {
-        console.error('Error fetching data:', error);
-        document.getElementById('classification').innerText = 'Error fetching data';
+        document.getElementById('status').innerText = `Status: Error loading model - ${error.message}`;
+        console.error('Model load error:', error);
       }
     }
-    fetchData();
-    setInterval(fetchData, 60000); // Refresh every minute
+    loadModel();
+
+    async function classify() {
+      const fileInput = document.getElementById('imageInput');
+      const imageUrl = document.getElementById('imageUrl').value.trim();
+      if (!fileInput.files[0] || !imageUrl) {
+        alert('Please upload an image and provide a public image URL');
+        document.getElementById('status').innerText = 'Status: Missing image or URL';
+        return;
+      }
+      document.getElementById('status').innerText = 'Status: Classifying...';
+      const img = document.getElementById('preview');
+      img.src = URL.createObjectURL(fileInput.files[0]);
+      img.style.display = 'block';
+      img.onload = async () => {
+        try {
+          const image = tf.browser.fromPixels(img);
+          const resized = tf.image.resizeBilinear(image, [224, 224]); // Adjust if model expects different size
+          const normalized = resized.div(255.0);
+          const batched = normalized.expandDims(0);
+          const prediction = await model.predict(batched).data();
+          const maxIndex = prediction.indexOf(Math.max(...prediction));
+          const labels = ['Good', 'Damaged', 'Non-Refundable']; // Replace with your class names
+          const result = labels[maxIndex];
+          const confidence = prediction[maxIndex];
+          document.getElementById('result').innerText = `Result: ${result}`;
+          document.getElementById('confidence').innerText = `Confidence: ${(confidence * 100).toFixed(2)}%`;
+          sendToThingSpeak(result, confidence, imageUrl);
+        } catch (error) {
+          document.getElementById('status').innerText = `Status: Classification error - ${error.message}`;
+          console.error('Classification error:', error);
+        }
+      };
+    }
+
+    function sendToThingSpeak(result, confidence, imageUrl) {
+      const apiKey = 'ORZJ88EUT7HLBIQC'; // Replace with your Write API Key
+      const channelId = '2994468'; // Replace with your Channel ID
+      const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field5=${encodeURIComponent(result)}&field6=${confidence}&status=${encodeURIComponent(imageUrl)}`;
+      fetch(url)
+        .then(response => {
+          if (response.ok) {
+            document.getElementById('status').innerText = 'Status: Data sent to ThingSpeak';
+          } else {
+            document.getElementById('status').innerText = `Status: ThingSpeak error - ${response.status}`;
+          }
+        })
+        .catch(error => {
+          document.getElementById('status').innerText = `Status: Network error - ${error.message}`;
+          console.error('Network error:', error);
+        });
+    }
   </script>
 </body>
 </html>
