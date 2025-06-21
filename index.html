@@ -1,40 +1,138 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ReTrack </title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReTrack - Return Classifier</title>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin: 20px; background-color: #f0f0f0; }
-    h1 { color: #333; }
-    input, button { margin: 10px; padding: 8px; font-size: 16px; }
-    button { background-color: #4BC0C0; color: white; border: none; cursor: pointer; }
-    button:hover { background-color: #3aa0a0; }
-    img { max-width: 300px; margin: 10px; border: 2px solid #ddd; }
-    p { font-size: 18px; }
-    #status { color: #555; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      background-color: #f9fafa;
+      color: #1f2937;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    p.subtitle {
+      font-size: 1.1rem;
+      margin-bottom: 25px;
+      color: #4b5563;
+    }
+
+    .upload-container {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 30px;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    input[type="file"],
+    input[type="text"] {
+      padding: 12px 14px;
+      font-size: 1rem;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      width: 100%;
+    }
+
+    button {
+      padding: 12px;
+      background-color: #10b981;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #059669;
+    }
+
+    #preview {
+      margin-top: 20px;
+      max-width: 300px;
+      border-radius: 10px;
+      border: 2px solid #e5e7eb;
+      display: none;
+    }
+
+    .output {
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    .output p {
+      font-size: 1.1rem;
+      margin: 5px 0;
+    }
+
+    #status {
+      margin-top: 15px;
+      font-size: 0.95rem;
+      color: #6b7280;
+    }
+
+    .dashboard-link {
+      margin-top: 30px;
+      font-size: 1rem;
+      color: #2563eb;
+      text-decoration: none;
+    }
+
+    .dashboard-link:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
-  <h1>ReTrack Return Classifier</h1>
-  <p>Upload an image to classify returns (e.g., Refundable, Partially refundable, Non-Refundable)</p>
-  <input type="file" id="imageInput" accept="image/*">
-  <input type="text" id="imageUrl" placeholder="Paste public image URL (e.g., Imgur link)">
-  <button onclick="classify()">Classify Image</button>
-  <p id="status">Status: Ready</p>
-  <img id="preview" style="display:none">
-  <p id="result"></p>
-  <p id="confidence"></p>
-  <p><a href="dashboard.html">View Dashboard</a></p>
+  <h1>ReTrack</h1>
+  <p class="subtitle">Classify product returns: Refundable, Partial, or Non-Refundable</p>
+
+  <div class="upload-container">
+    <input type="file" id="imageInput" accept="image/*" capture="environment">
+    <input type="text" id="imageUrl" placeholder="Or paste public image URL (e.g., Imgur)">
+    <button onclick="classify()">📷 Classify Image</button>
+  </div>
+
+  <img id="preview" alt="Image Preview">
+
+  <div class="output">
+    <p id="result"></p>
+    <p id="confidence"></p>
+    <p id="status">Status: Ready</p>
+  </div>
+
+  <a href="dashboard.html" class="dashboard-link">📊 View Dashboard</a>
+
   <script>
     let model;
     async function loadModel() {
       try {
-        model = await tf.loadLayersModel('/model/model.json');
-        document.getElementById('status').innerText = 'Status: Model loaded successfully';
+        const modelURL = location.origin + '/model/model.json';
+        model = await tf.loadLayersModel(modelURL);
+        document.getElementById('status').innerText = 'Status: Model loaded successfully ✅';
       } catch (error) {
-        document.getElementById('status').innerText = `Status: Error loading model - ${error.message}`;
+        document.getElementById('status').innerText = `Status: Model load error ❌ - ${error.message}`;
         console.error('Model load error:', error);
       }
     }
@@ -43,50 +141,62 @@
     async function classify() {
       const fileInput = document.getElementById('imageInput');
       const imageUrl = document.getElementById('imageUrl').value.trim();
-      if (!fileInput.files[0] || !imageUrl) {
-        alert('Please upload an image and provide a public image URL');
-        document.getElementById('status').innerText = 'Status: Missing image or URL';
+      const img = document.getElementById('preview');
+
+      if (!fileInput.files[0] && !imageUrl) {
+        alert('Please upload an image or enter an image URL.');
+        document.getElementById('status').innerText = 'Status: No image provided';
         return;
       }
-      document.getElementById('status').innerText = 'Status: Classifying...';
-      const img = document.getElementById('preview');
-      img.src = URL.createObjectURL(fileInput.files[0]);
+
+      document.getElementById('status').innerText = 'Status: Classifying... ⏳';
+
+      if (fileInput.files[0]) {
+        img.src = URL.createObjectURL(fileInput.files[0]);
+      } else {
+        img.src = imageUrl;
+      }
       img.style.display = 'block';
+
       img.onload = async () => {
         try {
           const image = tf.browser.fromPixels(img);
-          const resized = tf.image.resizeBilinear(image, [224, 224]); // Adjust if model expects different size
+          const resized = tf.image.resizeBilinear(image, [224, 224]);
           const normalized = resized.div(255.0);
           const batched = normalized.expandDims(0);
+
           const prediction = await model.predict(batched).data();
           const maxIndex = prediction.indexOf(Math.max(...prediction));
-          const labels = ['Good', 'Damaged', 'Non-Refundable']; // Replace with your class names
+          const labels = ['Refundable', 'Partially Refundable', 'Non-Refundable'];
           const result = labels[maxIndex];
           const confidence = prediction[maxIndex];
-          document.getElementById('result').innerText = `Result: ${result}`;
-          document.getElementById('confidence').innerText = `Confidence: ${(confidence * 100).toFixed(2)}%`;
-          sendToThingSpeak(result, confidence, imageUrl);
+
+          document.getElementById('result').innerText = `🧾 Result: ${result}`;
+          document.getElementById('confidence').innerText = `📊 Confidence: ${(confidence * 100).toFixed(2)}%`;
+          document.getElementById('status').innerText = 'Status: Classification complete ✅';
+
+          sendToThingSpeak(result, confidence, imageUrl || 'uploaded image');
         } catch (error) {
-          document.getElementById('status').innerText = `Status: Classification error - ${error.message}`;
+          document.getElementById('status').innerText = `Status: Classification error ❌ - ${error.message}`;
           console.error('Classification error:', error);
         }
       };
     }
 
-    function sendToThingSpeak(result, confidence, imageUrl) {
-      const apiKey = 'ORZJ88EUT7HLBIQC'; // Replace with your Write API Key
-      const channelId = '2994468'; // Replace with your Channel ID
-      const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field5=${encodeURIComponent(result)}&field6=${confidence}&status=${encodeURIComponent(imageUrl)}`;
+    function sendToThingSpeak(result, confidence, imageSource) {
+      const apiKey = 'ORZJ88EUT7HLBIQC';
+      const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field5=${encodeURIComponent(result)}&field6=${confidence}&status=${encodeURIComponent(imageSource)}`;
+
       fetch(url)
         .then(response => {
           if (response.ok) {
-            document.getElementById('status').innerText = 'Status: Data sent to ThingSpeak';
+            document.getElementById('status').innerText += ' | Data sent to ThingSpeak ✅';
           } else {
-            document.getElementById('status').innerText = `Status: ThingSpeak error - ${response.status}`;
+            document.getElementById('status').innerText += ` | ThingSpeak error ❌ - ${response.status}`;
           }
         })
         .catch(error => {
-          document.getElementById('status').innerText = `Status: Network error - ${error.message}`;
+          document.getElementById('status').innerText += ` | Network error ❌ - ${error.message}`;
           console.error('Network error:', error);
         });
     }
