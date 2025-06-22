@@ -1,1 +1,1 @@
-{"tfjsVersion":"1.7.4","tmVersion":"2.4.10","packageVersion":"0.8.4-alpha2","packageName":"@teachablemachine/image","timeStamp":"2025-06-20T06:30:11.220Z","userMetadata":{},"modelName":"tm-my-image-model","labels":["Refundable","Partially Refundable","Reject"],"imageSize":224}
+{"tfjsVersion":"1.7.4","tmVersion":"2.4.10","packageVersion":"0.8.4-alpha2","packageName":"@teachablemachine/image","timeStamp":"2025-06-22T08:18:17.679Z","userMetadata":{},"modelName":"tm-my-image-model","labels":["REFUND","EXCHANGE"],"imageSize":224}
