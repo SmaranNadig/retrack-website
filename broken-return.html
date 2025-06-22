@@ -3,11 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Broken Product Return - ReTrack</title>
+  <title>ReTrack - Return Classifier</title>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
     body {
       background-color: #f9fafa;
       color: #1f2937;
@@ -16,14 +21,26 @@
       align-items: center;
       padding: 40px 20px;
     }
-    h1 { font-size: 2.2rem; font-weight: 600; margin-bottom: 10px; }
-    p.subtitle { font-size: 1.1rem; margin-bottom: 25px; color: #4b5563; }
-    .upload-container {
-      display: flex; flex-direction: column;
-      gap: 15px; margin-bottom: 30px;
-      width: 100%; max-width: 400px;
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 600;
+      margin-bottom: 10px;
     }
-    input[type="file"], input[type="text"] {
+    p.subtitle {
+      font-size: 1.1rem;
+      margin-bottom: 25px;
+      color: #4b5563;
+    }
+    .upload-container {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 30px;
+      width: 100%;
+      max-width: 400px;
+    }
+    input[type="file"],
+    input[type="text"] {
       padding: 12px 14px;
       font-size: 1rem;
       border: 1px solid #d1d5db;
@@ -40,7 +57,9 @@
       cursor: pointer;
       transition: background-color 0.3s ease;
     }
-    button:hover { background-color: #059669; }
+    button:hover {
+      background-color: #059669;
+    }
     #preview {
       margin-top: 20px;
       max-width: 300px;
@@ -51,8 +70,10 @@
     .output {
       margin-top: 20px;
       text-align: center;
-      font-size: 1.2rem;
-      font-weight: 500;
+    }
+    .output p {
+      font-size: 1.1rem;
+      margin: 5px 0;
     }
     #status {
       margin-top: 15px;
@@ -65,17 +86,19 @@
       color: #2563eb;
       text-decoration: none;
     }
-    .dashboard-link:hover { text-decoration: underline; }
+    .dashboard-link:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
   <h1>ReTrack</h1>
-  <p class="subtitle">Upload image of broken product to verify return eligibility</p>
+  <p class="subtitle">Classify product returns: Refundable, Partial, or Non-Refundable</p>
 
   <div class="upload-container">
     <input type="file" id="imageInput" accept="image/*" style="display: none;">
-    <button onclick="document.getElementById('imageInput').click()">Upload from Gallery</button>
-    <button onclick="classify()">Classify Image</button>
+    <button onclick="document.getElementById('imageInput').click()"> Upload from Gallery</button>
+    <button onclick="classify()"> Classify Image</button>
     <button onclick="startCamera()">📸 Use Camera</button>
     <video id="camera" autoplay playsinline width="300" style="display:none; border-radius: 8px; border: 2px solid #ccc;"></video>
     <button onclick="captureFromCamera()" id="captureBtn" style="display:none;">Capture</button>
@@ -83,12 +106,14 @@
   </div>
 
   <img id="preview" alt="Image Preview">
+
   <div class="output">
-    <p id="finalMessage"></p>
+    <p id="result"></p>
+    <p id="confidence"></p>
     <p id="status">Status: Ready</p>
   </div>
 
-  <a href="return.html" class="dashboard-link">← Back to Return Options</a>
+  <a href="https://smarannadig.github.io/retrack-website/dashboard.html" class="dashboard-link"> View Dashboard</a>
 
   <script>
     let model;
@@ -106,54 +131,83 @@
     }
     loadModel();
 
-    async function classifyImage(source) {
-      const tensor = tf.browser.fromPixels(source).resizeBilinear([224, 224]).div(255).expandDims(0);
-      const prediction = await model.predict(tensor).data();
-      const labels = ['Refundable', 'Partially Refundable', 'Non-Refundable'];
-      const maxIndex = prediction.indexOf(Math.max(...prediction));
-      const result = labels[maxIndex];
-
-      let message = '';
-      if (result === 'Refundable') {
-        message = '✅ PRODUCT IS BROKEN. REFUND WILL BE PROVIDED.';
-      } else {
-        message = '🔁 PRODUCT IS BROKEN. CANNOT BE REFUNDED. PLEASE EXCHANGE THE PRODUCT.';
-      }
-
-      document.getElementById('finalMessage').innerText = message;
-      document.getElementById('status').innerText = 'Status: Classification complete ✅';
-
-      sendToThingSpeak(result, 1.0, 'broken-return');
-    }
-
-    function classify() {
+    async function classify() {
       const fileInput = document.getElementById('imageInput');
+      const img = document.getElementById('preview');
+
       if (!fileInput.files[0]) {
         alert('Please upload an image.');
+        document.getElementById('status').innerText = 'Status: No image provided';
         return;
       }
 
-      const img = document.getElementById('preview');
+      document.getElementById('status').innerText = 'Status: Classifying... ⏳';
+
       img.src = URL.createObjectURL(fileInput.files[0]);
-      img.onload = () => classifyImage(img);
       img.style.display = 'block';
+
+      img.onload = async () => {
+        try {
+          const image = tf.browser.fromPixels(img);
+          const resized = tf.image.resizeBilinear(image, [224, 224]);
+          const normalized = resized.div(255.0);
+          const batched = normalized.expandDims(0);
+
+          const prediction = await model.predict(batched).data();
+          const maxIndex = prediction.indexOf(Math.max(...prediction));
+          const labels = ['Refundable', 'Partially Refundable', 'Non-Refundable'];
+          const result = labels[maxIndex];
+          const confidence = prediction[maxIndex];
+
+          document.getElementById('result').innerText = `🧾 Result: ${result}`;
+          document.getElementById('confidence').innerText = `📊 Confidence: ${(confidence * 100).toFixed(2)}%`;
+          document.getElementById('status').innerText = 'Status: Classification complete ✅';
+
+          sendToThingSpeak(result, confidence, 'uploaded-image');
+        } catch (error) {
+          document.getElementById('status').innerText = `Status: Classification error ❌ - ${error.message}`;
+          console.error('Classification error:', error);
+        }
+      };
+    }
+
+    function sendToThingSpeak(result, confidence, imageSource) {
+      const apiKey = 'ORZJ88EUT7HLBIQC';
+      const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field5=${encodeURIComponent(result)}&field6=${confidence}&status=${encodeURIComponent(imageSource)}`;
+
+      fetch(url)
+        .then(response => {
+          if (response.ok) {
+            document.getElementById('status').innerText += ' | Data sent to ThingSpeak ✅';
+          } else {
+            document.getElementById('status').innerText += ` | ThingSpeak error ❌ - ${response.status}`;
+          }
+        })
+        .catch(error => {
+          document.getElementById('status').innerText += ` | Network error ❌ - ${error.message}`;
+          console.error('Network error:', error);
+        });
     }
 
     function startCamera() {
       const video = document.getElementById('camera');
+      const captureBtn = document.getElementById('captureBtn');
+
       navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
         .then(stream => {
           video.srcObject = stream;
           videoStream = stream;
           video.style.display = 'block';
-          document.getElementById('captureBtn').style.display = 'inline-block';
+          captureBtn.style.display = 'inline-block';
+          document.getElementById('status').innerText = 'Status: Camera active 🎥';
         })
         .catch(error => {
           document.getElementById('status').innerText = `Status: Camera error ❌ - ${error.message}`;
+          console.error('Camera error:', error);
         });
     }
 
-    function captureFromCamera() {
+    async function captureFromCamera() {
       const video = document.getElementById('camera');
       const canvas = document.getElementById('canvas');
       const context = canvas.getContext('2d');
@@ -166,23 +220,29 @@
       preview.src = canvas.toDataURL('image/jpeg');
       preview.style.display = 'block';
 
-      classifyImage(canvas);
-    }
+      const imgTensor = tf.browser.fromPixels(canvas);
+      const resized = tf.image.resizeBilinear(imgTensor, [224, 224]);
+      const normalized = resized.div(255.0);
+      const batched = normalized.expandDims(0);
 
-    function sendToThingSpeak(result, confidence, imageSource) {
-      const apiKey = 'ORZJ88EUT7HLBIQC';
-      const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field5=${encodeURIComponent(result)}&field6=${confidence}&status=${encodeURIComponent(imageSource)}`;
-      fetch(url)
-        .then(res => {
-          if (res.ok) {
-            document.getElementById('status').innerText += ' | Data sent to ThingSpeak ✅';
-          } else {
-            document.getElementById('status').innerText += ` | ThingSpeak error ❌`;
-          }
-        })
-        .catch(err => {
-          document.getElementById('status').innerText += ` | Network error ❌ - ${err.message}`;
-        });
+      document.getElementById('status').innerText = 'Status: Classifying camera image... ⏳';
+
+      try {
+        const prediction = await model.predict(batched).data();
+        const maxIndex = prediction.indexOf(Math.max(...prediction));
+        const labels = ['Refundable', 'Partially Refundable', 'Non-Refundable'];
+        const result = labels[maxIndex];
+        const confidence = prediction[maxIndex];
+
+        document.getElementById('result').innerText = `🧾 Result: ${result}`;
+        document.getElementById('confidence').innerText = `📊 Confidence: ${(confidence * 100).toFixed(2)}%`;
+        document.getElementById('status').innerText = 'Status: Classification complete ✅';
+
+        sendToThingSpeak(result, confidence, 'captured-by-camera');
+      } catch (error) {
+        document.getElementById('status').innerText = `Status: Classification error ❌ - ${error.message}`;
+        console.error('Camera classification error:', error);
+      }
     }
   </script>
 </body>
