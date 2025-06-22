@@ -1,69 +1,95 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pickup Tracker - ReTrack</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pickup Monitor - ReTrack</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
     body {
-      font-family: 'Inter', sans-serif;
-      background-color: #f9fafa;
-      display: flex; flex-direction: column; align-items: center;
-      padding: 40px 20px; color: #1f2937;
+      background-color: #f3f4f6;
+      color: #1f2937;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
     }
-    h1 { font-size: 2.2rem; margin-bottom: 10px; }
-    input, button {
-      padding: 12px; font-size: 1rem; border-radius: 8px; margin: 10px 0; width: 100%;
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 600;
+      color: #2563eb;
+      margin-bottom: 10px;
+    }
+    .rfid-box {
+      margin: 20px 0;
+      display: flex;
+      gap: 10px;
+      flex-direction: column;
+      max-width: 400px;
+      width: 100%;
+    }
+    input {
+      padding: 12px;
+      font-size: 1rem;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
     }
     button {
-      background-color: #3b82f6; color: white; border: none;
-      cursor: pointer; transition: background-color 0.3s ease;
+      background: transparent;
+      border: 2px solid #2563eb;
+      color: #2563eb;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
     }
-    button:hover { background-color: #2563eb; }
-    .output p { font-size: 1.1rem; margin: 6px 0; text-align: center; }
+    button:hover {
+      background-color: #2563eb;
+      color: white;
+    }
+    #result {
+      margin-top: 30px;
+      font-size: 1.2rem;
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
   <h1>Pickup Dashboard</h1>
-  <input type="text" id="rfidInput" placeholder="Enter RFID Code">
-  <button onclick="startPickup()">Start Pickup</button>
-  <button onclick="dropPickup()">Drop Pickup</button>
-  <div class="output">
-    <p id="classification"></p>
-    <p id="sensors"></p>
-    <p id="finalDecision"></p>
+  <div class="rfid-box">
+    <input type="text" id="rfid" placeholder="Enter RFID Code" />
+    <button onclick="startPickup()">Start Pickup</button>
+    <button onclick="dropPickup()">Drop Pickup</button>
   </div>
+  <p id="result">Status: Waiting...</p>
 
   <script>
-    const channelId = '2994468';
-    const readKey = 'ORZJ88EUT7HLBIQC';
+    let startData;
 
-    function startPickup() {
-      const rfid = document.getElementById('rfidInput').value;
-      if (!rfid) return alert("Please enter RFID");
-      alert(`Pickup started for: ${rfid}`);
+    async function fetchThingSpeak() {
+      const res = await fetch('https://api.thingspeak.com/channels/2994468/feeds.json?api_key=ORZJ88EUT7HLBIQC&results=1');
+      const data = await res.json();
+      return data.feeds[0];
+    }
+
+    async function startPickup() {
+      startData = await fetchThingSpeak();
+      document.getElementById('result').innerText = 'Pickup Started. Monitoring...';
     }
 
     async function dropPickup() {
-      const response = await fetch(`https://api.thingspeak.com/channels/${channelId}/feeds.json?api_key=${readKey}&results=1`);
-      const data = await response.json();
-      const feed = data.feeds[0];
+      const currentData = await fetchThingSpeak();
+      const classification = currentData.field5;
+      const shock = parseFloat(currentData.field3 || 0);
+      const light = parseFloat(currentData.field4 || 0);
 
-      const classification = feed.field5;
-      const confidence = feed.field6;
-      const temp = parseFloat(feed.field1);
-      const shock = parseFloat(feed.field3);
-      const light = parseFloat(feed.field4);
-
-      let decision = "Exchange";
-      if (classification === "Return" && shock < 300 && light < 300) {
-        decision = "Refundable";
+      if (classification === 'Refundable' && shock < 50 && light < 50) {
+        document.getElementById('result').innerText = 'Final Decision: REFUNDABLE';
+      } else {
+        document.getElementById('result').innerText = 'Final Decision: EXCHANGE';
       }
-
-      document.getElementById('classification').innerText = `📦 Classification: ${classification}`;
-      document.getElementById('sensors').innerText = `Sensors → Shock: ${shock}, Light: ${light}`;
-      document.getElementById('finalDecision').innerText = `✅ Final Decision: ${decision}`;
     }
   </script>
 </body>
