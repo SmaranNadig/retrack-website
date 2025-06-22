@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pickup Dashboard</title>
+  <style>
+    body { font-family: Arial; text-align: center; padding: 30px; background: #f3f4f6; }
+    input, button { padding: 12px; margin: 10px; font-size: 1rem; }
+    h2 { color: #111827; }
+  </style>
+</head>
+<body>
+  <h2>Product Pickup Dashboard</h2>
+  <input type="text" id="rfidInput" placeholder="Enter RFID Code">
+  <button onclick="startPickup()">Start Pickup</button>
+  <button onclick="dropPickup()">Drop Pickup</button>
+
+  <p id="output"></p>
+
+  <script>
+    let lastData;
+
+    function startPickup() {
+      document.getElementById('output').innerText = 'Monitoring...';
+      const rfid = document.getElementById('rfidInput').value.trim();
+      if (!rfid) return alert('Enter RFID Code');
+
+      fetch(`https://api.thingspeak.com/channels/2994468/feeds.json?api_key=ORZJ88EUT7HLBIQC&results=1`)
+        .then(res => res.json())
+        .then(data => lastData = data.feeds[0])
+        .catch(err => console.error('Error:', err));
+    }
+
+    function dropPickup() {
+      if (!lastData) return alert('Start pickup first!');
+      const temp = parseFloat(lastData.field1);
+      const humidity = parseFloat(lastData.field2);
+      const shock = parseFloat(lastData.field3);
+      const light = parseFloat(lastData.field4);
+      const classification = lastData.field5;
+
+      const verdict = (classification === 'Return' && temp < 45 && humidity < 80 && shock < 3 && light < 800)
+        ? 'Verdict: REFUNDABLE ✅'
+        : 'Verdict: EXCHANGE ONLY 🔄';
+
+      document.getElementById('output').innerText = verdict;
+    }
+  </script>
+</body>
+</html>

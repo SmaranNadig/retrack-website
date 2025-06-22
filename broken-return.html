@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Broken Product - Upload Image</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 30px; background: #f8fafc; }
+    h2 { color: #1f2937; }
+    input, button { margin: 10px; padding: 12px; font-size: 1rem; }
+    img { max-width: 300px; margin-top: 20px; display: none; border-radius: 8px; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <h2>Upload image of broken product</h2>
+  <input type="file" id="imageInput" accept="image/*" />
+  <button onclick="classify()">Classify</button>
+  <img id="preview" alt="Preview">
+  <p id="result"></p>
+  <p id="status">Status: Waiting...</p>
+
+  <script>
+    let model;
+    tf.loadLayersModel('https://raw.githubusercontent.com/SmaranNadig/retrack-website/main/model/model.json').then(m => {
+      model = m;
+      document.getElementById('status').innerText = 'Model loaded ✅';
+    });
+
+    async function classify() {
+      const input = document.getElementById('imageInput');
+      if (!input.files[0]) return alert('Upload an image first!');
+      const img = document.getElementById('preview');
+      img.src = URL.createObjectURL(input.files[0]);
+      img.style.display = 'block';
+      img.onload = async () => {
+        const tensor = tf.browser.fromPixels(img).resizeNearestNeighbor([224,224]).toFloat().div(255.0).expandDims();
+        const prediction = await model.predict(tensor).data();
+        const label = prediction[0] > prediction[1] ? 'Return' : 'Exchange';
+        document.getElementById('result').innerText = `Prediction: ${label}`;
+        document.getElementById('status').innerText = 'Status: Done ✅';
+
+        fetch(`https://api.thingspeak.com/update?api_key=ORZJ88EUT7HLBIQC&field5=${label}&field6=${Math.max(...prediction)}&status=uploaded-image`);
+      };
+    }
+  </script>
+</body>
+</html>
