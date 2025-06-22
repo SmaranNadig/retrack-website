@@ -3,50 +3,138 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Exchange Product</title>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <title>Exchange Product - ReTrack</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 30px; background: #f8fafc; }
-    h2, h3 { color: #1f2937; }
-    input, button { margin: 10px; padding: 12px; font-size: 1rem; }
-    img { max-width: 300px; margin-top: 20px; display: none; border-radius: 8px; border: 1px solid #ccc; }
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+    body {
+      background-color: #f9fafa; color: #1f2937;
+      display: flex; flex-direction: column;
+      align-items: center; padding: 40px 20px;
+    }
+    h1 { font-size: 2.2rem; font-weight: 600; margin-bottom: 10px; }
+    p.subtitle { font-size: 1.1rem; margin-bottom: 25px; color: #4b5563; }
+    .upload-container {
+      display: flex; flex-direction: column; gap: 15px;
+      margin-bottom: 30px; width: 100%; max-width: 400px;
+    }
+    input, button {
+      padding: 12px; font-size: 1rem; border-radius: 8px; width: 100%;
+    }
+    input[type="file"] { border: 1px solid #d1d5db; }
+    button {
+      background-color: #10b981; color: white;
+      border: none; cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover { background-color: #059669; }
+    #preview {
+      margin-top: 20px; max-width: 300px;
+      border-radius: 10px; border: 2px solid #e5e7eb; display: none;
+    }
+    .output p { font-size: 1.1rem; margin: 5px 0; }
+    #status { margin-top: 15px; font-size: 0.95rem; color: #6b7280; }
+    .dashboard-link {
+      margin-top: 30px; font-size: 1rem;
+      color: #2563eb; text-decoration: none;
+    }
+    .dashboard-link:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
-  <h2>Product Exchange</h2>
-  <h3>Your RFID Code:</h3>
-  <p id="rfid"></p>
-  <input type="file" id="imageInput" accept="image/*" />
-  <button onclick="classify()">Classify</button>
-  <img id="preview" alt="Preview">
-  <p id="result"></p>
-  <p id="status">Status: Waiting...</p>
+  <h1>ReTrack</h1>
+  <p class="subtitle">Exchange item: Generate RFID + Upload or Capture Image</p>
+
+  <div class="upload-container">
+    <input type="text" id="rfid" placeholder="Generated RFID Code" readonly>
+    <button onclick="generateRFID()">Generate RFID</button>
+    <input type="file" id="imageInput" accept="image/*" style="display: none;">
+    <button onclick="document.getElementById('imageInput').click()">Upload from Gallery</button>
+    <button onclick="classify()">Classify Image</button>
+    <button onclick="startCamera()">📸 Use Camera</button>
+    <video id="camera" autoplay playsinline width="300" style="display:none; border-radius: 8px; border: 2px solid #ccc;"></video>
+    <button onclick="captureFromCamera()" id="captureBtn" style="display:none;">Capture</button>
+    <canvas id="canvas" style="display:none;"></canvas>
+  </div>
+
+  <img id="preview" alt="Image Preview">
+  <div class="output">
+    <p id="result"></p>
+    <p id="confidence"></p>
+    <p id="status">Status: Ready</p>
+  </div>
+  <a href="return.html" class="dashboard-link">← Go Back</a>
 
   <script>
-    const rfid = 'RFID-' + Math.floor(Math.random() * 100000);
-    document.getElementById('rfid').innerText = rfid;
-
     let model;
-    tf.loadLayersModel('https://raw.githubusercontent.com/SmaranNadig/retrack-website/main/model/model.json').then(m => {
-      model = m;
-      document.getElementById('status').innerText = 'Model loaded ✅';
-    });
+    let videoStream;
 
-    async function classify() {
-      const input = document.getElementById('imageInput');
-      if (!input.files[0]) return alert('Upload an image first!');
+    async function loadModel() {
+      try {
+        model = await tf.loadLayersModel('https://raw.githubusercontent.com/SmaranNadig/retrack-website/main/model/model.json');
+        document.getElementById('status').innerText = 'Status: Model loaded ✅';
+      } catch (error) {
+        document.getElementById('status').innerText = `Model load error ❌: ${error.message}`;
+      }
+    }
+    loadModel();
+
+    function generateRFID() {
+      const code = 'RFID-' + Math.floor(100000 + Math.random() * 900000);
+      document.getElementById('rfid').value = code;
+    }
+
+    async function classifyImage(source) {
+      const tensor = tf.browser.fromPixels(source).resizeBilinear([224, 224]).div(255).expandDims(0);
+      const prediction = await model.predict(tensor).data();
+      const labels = ['Exchange', 'Return'];
+      const maxIndex = prediction.indexOf(Math.max(...prediction));
+      const result = labels[maxIndex];
+      const confidence = prediction[maxIndex];
+
+      document.getElementById('result').innerText = `🧾 Result: ${result}`;
+      document.getElementById('confidence').innerText = `📊 Confidence: ${(confidence * 100).toFixed(2)}%`;
+      document.getElementById('status').innerText = 'Classification complete ✅';
+
+      sendToThingSpeak(result, confidence, document.getElementById('rfid').value);
+    }
+
+    function classify() {
+      const fileInput = document.getElementById('imageInput');
+      if (!fileInput.files[0]) return alert("Upload an image first!");
       const img = document.getElementById('preview');
-      img.src = URL.createObjectURL(input.files[0]);
+      img.src = URL.createObjectURL(fileInput.files[0]);
+      img.onload = () => classifyImage(img);
       img.style.display = 'block';
-      img.onload = async () => {
-        const tensor = tf.browser.fromPixels(img).resizeNearestNeighbor([224,224]).toFloat().div(255.0).expandDims();
-        const prediction = await model.predict(tensor).data();
-        const label = prediction[0] > prediction[1] ? 'Return' : 'Exchange';
-        document.getElementById('result').innerText = `Prediction: ${label}`;
-        document.getElementById('status').innerText = 'Status: Done ✅';
+    }
 
-        fetch(`https://api.thingspeak.com/update?api_key=ORZJ88EUT7HLBIQC&field5=${label}&field6=${Math.max(...prediction)}&status=${rfid}`);
-      };
+    function startCamera() {
+      const video = document.getElementById('camera');
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(stream => {
+          video.srcObject = stream;
+          videoStream = stream;
+          video.style.display = 'block';
+          document.getElementById('captureBtn').style.display = 'inline-block';
+        });
+    }
+
+    async function captureFromCamera() {
+      const video = document.getElementById('camera');
+      const canvas = document.getElementById('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      const preview = document.getElementById('preview');
+      preview.src = canvas.toDataURL('image/jpeg');
+      preview.style.display = 'block';
+      classifyImage(canvas);
+    }
+
+    function sendToThingSpeak(result, confidence, rfid) {
+      const url = `https://api.thingspeak.com/update?api_key=ORZJ88EUT7HLBIQC&field5=${result}&field6=${confidence}&status=${rfid}`;
+      fetch(url);
     }
   </script>
 </body>
