@@ -95,22 +95,6 @@
     .dashboard-link:hover {
       text-decoration: underline;
     }
-    .result-message {
-      font-weight: 600;
-      padding: 12px;
-      border-radius: 8px;
-      margin-top: 15px;
-    }
-    .refundable {
-      background-color: #dcfce7;
-      color: #166534;
-      border: 1px solid #bbf7d0;
-    }
-    .non-refundable {
-      background-color: #fee2e2;
-      color: #991b1b;
-      border: 1px solid #fecaca;
-    }
   </style>
 </head>
 <body>
@@ -130,7 +114,7 @@
   <img id="preview" alt="Image Preview" />
 
   <div class="output">
-    <div id="result-message" class="result-message" style="display:none;"></div>
+    <p id="result"></p>
     <p id="status">Status: Ready</p>
   </div>
 
@@ -155,7 +139,6 @@
     async function classify() {
       const fileInput = document.getElementById('imageInput');
       const img = document.getElementById('preview');
-      const resultMessage = document.getElementById('result-message');
 
       if (!fileInput.files[0]) {
         alert('Please upload an image.');
@@ -164,7 +147,6 @@
       }
 
       document.getElementById('status').innerText = 'Status: Classifying... ⏳';
-      resultMessage.style.display = 'none';
 
       img.src = URL.createObjectURL(fileInput.files[0]);
       img.style.display = 'block';
@@ -180,14 +162,10 @@
           const maxIndex = prediction.indexOf(Math.max(...prediction));
           const confidence = prediction[maxIndex];
 
-          resultMessage.style.display = 'block';
-          
           if (maxIndex === 0) { // Refundable
-            resultMessage.className = 'result-message refundable';
-            resultMessage.innerHTML = '🟢 PRODUCT IS BROKEN. REFUND WILL BE PROVIDED.';
+            document.getElementById('result').innerText = '🟢 PRODUCT IS BROKEN. REFUND WILL BE PROVIDED.';
           } else { // Partially Refundable or Non-Refundable
-            resultMessage.className = 'result-message non-refundable';
-            resultMessage.innerHTML = '🔁 PRODUCT IS BROKEN. CANNOT BE REFUNDED. PLEASE EXCHANGE THE PRODUCT.';
+            document.getElementById('result').innerText = '🔁 PRODUCT IS BROKEN. CANNOT BE REFUNDED. PLEASE EXCHANGE THE PRODUCT.';
           }
 
           document.getElementById('status').innerText = 'Status: Classification complete ✅';
@@ -239,7 +217,6 @@
       const video = document.getElementById('camera');
       const canvas = document.getElementById('canvas');
       const context = canvas.getContext('2d');
-      const resultMessage = document.getElementById('result-message');
 
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -255,21 +232,16 @@
       const batched = normalized.expandDims(0);
 
       document.getElementById('status').innerText = 'Status: Classifying camera image... ⏳';
-      resultMessage.style.display = 'none';
 
       try {
         const prediction = await model.predict(batched).data();
         const maxIndex = prediction.indexOf(Math.max(...prediction));
         const confidence = prediction[maxIndex];
 
-        resultMessage.style.display = 'block';
-        
         if (maxIndex === 0) { // Refundable
-          resultMessage.className = 'result-message refundable';
-          resultMessage.innerHTML = '🟢 PRODUCT IS BROKEN. REFUND WILL BE PROVIDED.';
+          document.getElementById('result').innerText = '🟢 PRODUCT IS BROKEN. REFUND WILL BE PROVIDED.';
         } else { // Partially Refundable or Non-Refundable
-          resultMessage.className = 'result-message non-refundable';
-          resultMessage.innerHTML = '🔁 PRODUCT IS BROKEN. CANNOT BE REFUNDED. PLEASE EXCHANGE THE PRODUCT.';
+          document.getElementById('result').innerText = '🔁 PRODUCT IS BROKEN. CANNOT BE REFUNDED. PLEASE EXCHANGE THE PRODUCT.';
         }
 
         document.getElementById('status').innerText = 'Status: Classification complete ✅';
