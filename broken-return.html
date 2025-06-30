@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ReTrack - Broken Return</title>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     * {
       margin: 0;
@@ -13,119 +13,217 @@
       box-sizing: border-box;
       font-family: 'Inter', sans-serif;
     }
+    
     body {
-      background-color: #f9fafa;
-      color: #1f2937;
+      background: linear-gradient(135deg, #fefce8 0%, #fef3c7 50%, #fde68a 100%);
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       padding: 40px 20px;
     }
-    h1 {
-      font-size: 2.5rem;
-      font-weight: 600;
-      margin-bottom: 10px;
-    }
-    p.subtitle {
-      font-size: 1.1rem;
-      margin-bottom: 25px;
-      color: #4b5563;
+    
+    .container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 500px;
       text-align: center;
     }
+    
+    h1 {
+      font-size: 2.8rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #d97706, #b45309);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    p.subtitle {
+      font-size: 1.1rem;
+      margin-bottom: 30px;
+      color: #64748b;
+      line-height: 1.6;
+    }
+    
     .upload-container {
       display: flex;
       flex-direction: column;
       gap: 15px;
       width: 100%;
-      max-width: 400px;
       margin-bottom: 30px;
     }
+    
     button {
-      padding: 12px;
-      background: transparent;
-      color: #2563eb;
-      border: 1px solid #2563eb;
-      border-radius: 8px;
+      padding: 14px 20px;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: white;
+      border: none;
+      border-radius: 12px;
       font-size: 1rem;
+      font-weight: 500;
       cursor: pointer;
       transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
     }
+    
     button:hover {
-      background: rgba(59, 130, 246, 0.1);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
     }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
     input[type="file"] {
       display: none;
     }
+    
     video {
       display: none;
       width: 100%;
-      max-width: 400px;
-      border-radius: 8px;
-      border: 2px solid #d1d5db;
+      border-radius: 12px;
+      border: 3px solid rgba(245, 158, 11, 0.3);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
     }
+    
     canvas {
       display: none;
     }
+    
     img#preview {
       margin-top: 20px;
       max-width: 100%;
-      border-radius: 10px;
-      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      border: 3px solid rgba(245, 158, 11, 0.3);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
       display: none;
     }
+    
     .output {
-      margin-top: 20px;
+      margin-top: 25px;
       text-align: center;
     }
+    
     .output p {
       font-size: 1.1rem;
-      margin: 5px 0;
+      margin: 10px 0;
     }
+    
     #result {
       font-weight: 600;
-      padding: 10px;
-      border-radius: 6px;
-      background-color: #f8fafc;
-      border: 1px solid #e2e8f0;
+      padding: 20px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+      border: 2px solid rgba(245, 158, 11, 0.2);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      color: #1e293b;
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
+    
+    #result:empty {
+      display: none;
+    }
+    
     #status {
       margin-top: 15px;
       font-size: 0.95rem;
-      color: #6b7280;
+      color: #64748b;
+      background: rgba(248, 250, 252, 0.8);
+      padding: 10px 15px;
+      border-radius: 8px;
+      border: 1px solid rgba(226, 232, 240, 0.5);
     }
+    
     .dashboard-link {
       margin-top: 30px;
       font-size: 1rem;
-      color: #2563eb;
+      color: #d97706;
       text-decoration: none;
+      font-weight: 500;
+      transition: color 0.3s ease;
     }
+    
     .dashboard-link:hover {
+      color: #b45309;
       text-decoration: underline;
+    }
+    
+    .feature-card {
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 12px;
+      padding: 15px;
+      margin: 10px 0;
+      border: 1px solid rgba(245, 158, 11, 0.1);
+      transition: all 0.3s ease;
+    }
+    
+    .feature-card:hover {
+      background: rgba(255, 255, 255, 0.8);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+    
+    .success-result {
+      background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+      border-color: #22c55e;
+      color: #15803d;
+    }
+    
+    .warning-result {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border-color: #f59e0b;
+      color: #92400e;
+    }
+    
+    @media (max-width: 600px) {
+      .container {
+        margin: 20px;
+        padding: 30px 20px;
+      }
+      
+      h1 {
+        font-size: 2.2rem;
+      }
+      
+      button {
+        padding: 12px 18px;
+        font-size: 0.95rem;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>ReTrack</h1>
-  <p class="subtitle">Upload a photo of the broken product to check refund eligibility</p>
+  <div class="container">
+    <h1>ReTrack</h1>
+    <p class="subtitle">Upload a photo of the broken product to check refund eligibility</p>
 
-  <div class="upload-container">
-    <input type="file" id="imageInput" accept="image/*" />
-    <button onclick="document.getElementById('imageInput').click()">Upload from Gallery</button>
-    <button onclick="classify()">Classify Image</button>
-    <button onclick="startCamera()">Use Camera</button>
-    <video id="camera" autoplay playsinline></video>
-    <button onclick="captureFromCamera()" id="captureBtn" style="display:none;">Capture</button>
-    <canvas id="canvas"></canvas>
+    <div class="upload-container">
+      <input type="file" id="imageInput" accept="image/*" />
+      <button onclick="document.getElementById('imageInput').click()">📁 Upload from Gallery</button>
+      <button onclick="classify()">🔍 Classify Image</button>
+      <button onclick="startCamera()">📸 Use Camera</button>
+      <video id="camera" autoplay playsinline></video>
+      <button onclick="captureFromCamera()" id="captureBtn" style="display:none;">📷 Capture Photo</button>
+      <canvas id="canvas"></canvas>
+    </div>
+
+    <img id="preview" alt="Image Preview" />
+
+    <div class="output">
+      <div id="result"></div>
+      <div id="status">Status: Ready</div>
+    </div>
   </div>
-
-  <img id="preview" alt="Image Preview" />
-
-  <div class="output">
-    <p id="result"></p>
-    <p id="status">Status: Ready</p>
-  </div>
-
-  
 
   <script>
     let model;
@@ -135,9 +233,9 @@
       try {
         const modelURL = 'https://raw.githubusercontent.com/SmaranNadig/retrack-website/main/model/model.json';
         model = await tf.loadLayersModel(modelURL);
-        document.getElementById('status').innerText = 'Status: Model loaded successfully';
+        document.getElementById('status').innerText = 'Status: Model loaded successfully ✅';
       } catch (error) {
-        document.getElementById('status').innerText = `Status: Model load error - ${error.message}`;
+        document.getElementById('status').innerText = `Status: Model load error - ${error.message} ❌`;
         console.error('Model load error:', error);
       }
     }
@@ -149,11 +247,11 @@
 
       if (!fileInput.files[0]) {
         alert('Please upload an image.');
-        document.getElementById('status').innerText = 'Status: No image provided';
+        document.getElementById('status').innerText = 'Status: No image provided ⚠️';
         return;
       }
 
-      document.getElementById('status').innerText = 'Status: Classifying...';
+      document.getElementById('status').innerText = 'Status: Classifying... 🔄';
 
       img.src = URL.createObjectURL(fileInput.files[0]);
       img.style.display = 'block';
@@ -169,16 +267,21 @@
           const maxIndex = prediction.indexOf(Math.max(...prediction));
           const confidence = prediction[maxIndex];
 
+          const resultDiv = document.getElementById('result');
+          resultDiv.style.display = 'flex';
+
           if (maxIndex === 0) { // Refundable
-            document.getElementById('result').innerText = 'PRODUCT IS BROKEN. REFUND WILL BE PROVIDED.';
+            resultDiv.innerText = '✅ PRODUCT IS BROKEN. REFUND WILL BE PROVIDED.';
+            resultDiv.className = 'success-result';
           } else { // Partially Refundable or Non-Refundable
-            document.getElementById('result').innerText = 'PRODUCT IS BROKEN. CANNOT BE REFUNDED. PLEASE EXCHANGE THE PRODUCT.';
+            resultDiv.innerText = '⚠️ PRODUCT IS BROKEN. CANNOT BE REFUNDED. PLEASE EXCHANGE THE PRODUCT.';
+            resultDiv.className = 'warning-result';
           }
 
-          document.getElementById('status').innerText = 'Status: Classification complete';
+          document.getElementById('status').innerText = 'Status: Classification complete ✅';
           sendToThingSpeak(maxIndex === 0 ? 'Refundable' : 'Non-Refundable', confidence, 'uploaded-image');
         } catch (error) {
-          document.getElementById('status').innerText = `Status: Classification error - ${error.message}`;
+          document.getElementById('status').innerText = `Status: Classification error - ${error.message} ❌`;
           console.error('Classification error:', error);
         }
       };
@@ -191,13 +294,13 @@
       fetch(url)
         .then(response => {
           if (response.ok) {
-            document.getElementById('status').innerText += ' | Data sent to ThingSpeak';
+            document.getElementById('status').innerText += ' | Data sent to ThingSpeak 📡';
           } else {
-            document.getElementById('status').innerText += ` | ThingSpeak error - ${response.status}`;
+            document.getElementById('status').innerText += ` | ThingSpeak error - ${response.status} ❌`;
           }
         })
         .catch(error => {
-          document.getElementById('status').innerText += ` | Network error - ${error.message}`;
+          document.getElementById('status').innerText += ` | Network error - ${error.message} ❌`;
           console.error('ThingSpeak error:', error);
         });
     }
@@ -212,10 +315,10 @@
           videoStream = stream;
           video.style.display = 'block';
           captureBtn.style.display = 'inline-block';
-          document.getElementById('status').innerText = 'Status: Camera active';
+          document.getElementById('status').innerText = 'Status: Camera active 📹';
         })
         .catch(error => {
-          document.getElementById('status').innerText = `Status: Camera error - ${error.message}`;
+          document.getElementById('status').innerText = `Status: Camera error - ${error.message} ❌`;
           console.error('Camera error:', error);
         });
     }
@@ -238,23 +341,28 @@
       const normalized = resized.div(255.0);
       const batched = normalized.expandDims(0);
 
-      document.getElementById('status').innerText = 'Status: Classifying camera image...';
+      document.getElementById('status').innerText = 'Status: Classifying camera image... 🔄';
 
       try {
         const prediction = await model.predict(batched).data();
         const maxIndex = prediction.indexOf(Math.max(...prediction));
         const confidence = prediction[maxIndex];
 
+        const resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'flex';
+
         if (maxIndex === 0) { // Refundable
-          document.getElementById('result').innerText = 'PRODUCT IS BROKEN. REFUND WILL BE PROVIDED.';
+          resultDiv.innerText = '✅ PRODUCT IS BROKEN. REFUND WILL BE PROVIDED.';
+          resultDiv.className = 'success-result';
         } else { // Partially Refundable or Non-Refundable
-          document.getElementById('result').innerText = ' CANNOT BE REFUNDED. PLEASE EXCHANGE THE PRODUCT.';
+          resultDiv.innerText = '⚠️ PRODUCT IS BROKEN. CANNOT BE REFUNDED. PLEASE EXCHANGE THE PRODUCT.';
+          resultDiv.className = 'warning-result';
         }
 
-        document.getElementById('status').innerText = 'Status: Classification complete';
+        document.getElementById('status').innerText = 'Status: Classification complete ✅';
         sendToThingSpeak(maxIndex === 0 ? 'Refundable' : 'Non-Refundable', confidence, 'captured-by-camera');
       } catch (error) {
-        document.getElementById('status').innerText = `Status: Classification error - ${error.message}`;
+        document.getElementById('status').innerText = `Status: Classification error - ${error.message} ❌`;
         console.error('Camera classification error:', error);
       }
     }
