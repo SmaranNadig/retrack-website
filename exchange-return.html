@@ -7,120 +7,232 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+    :root {
+      --primary-amber: #f59e0b;
+      --dark-amber: #d97706;
+      --darker-amber: #b45309;
+      --cream-light: #fefce8;
+      --cream-medium: #fef3c7;
+      --cream-dark: #fde68a;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --success-green: #22c55e;
+      --warning-amber: #f59e0b;
+    }
+    
+    * { 
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box; 
+      font-family: 'Inter', sans-serif; 
+    }
+    
     body {
-      background-color: #f3f4f6;
-      color: #1f2937;
+      background: linear-gradient(135deg, var(--cream-light) 0%, var(--cream-medium) 100%);
+      color: var(--text-primary);
       display: flex;
       flex-direction: column;
       align-items: center;
       padding: 40px 20px;
+      min-height: 100vh;
     }
+    
     h1 {
       font-size: 2.2rem;
       font-weight: 600;
-      color: #2563eb;
+      color: var(--darker-amber);
       margin-bottom: 10px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
+    
     p.subtitle {
       font-size: 1rem;
       margin-bottom: 25px;
-      color: #4b5563;
+      color: var(--text-secondary);
     }
+    
     .container {
       width: 100%;
       max-width: 400px;
       display: flex;
       flex-direction: column;
       gap: 15px;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
     }
+    
     input[type="file"], input[type="text"] {
-      padding: 12px;
+      padding: 12px 16px;
       font-size: 1rem;
-      border: 1px solid #d1d5db;
+      border: 2px solid var(--cream-dark);
       border-radius: 8px;
       width: 100%;
-    }
-    button {
-      background: transparent;
-      border: 2px solid #2563eb;
-      color: #2563eb;
-      padding: 12px;
-      border-radius: 8px;
-      font-size: 1rem;
-      cursor: pointer;
+      background: var(--cream-light);
+      color: var(--text-primary);
       transition: all 0.3s ease;
     }
-    button:hover {
-      background-color: #2563eb;
-      color: white;
+    
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--primary-amber);
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
     }
+    
+    button {
+      background: linear-gradient(135deg, var(--primary-amber) 0%, var(--dark-amber) 100%);
+      border: none;
+      color: white;
+      padding: 14px 20px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+    
+    button:hover::before {
+      left: 100%;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+      background: linear-gradient(135deg, var(--dark-amber) 0%, var(--darker-amber) 100%);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
     #preview {
       margin-top: 20px;
       max-width: 300px;
-      border-radius: 8px;
+      border-radius: 12px;
       display: none;
-      border: 2px solid #ccc;
+      border: 3px solid var(--primary-amber);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
     }
+    
     #status {
       margin-top: 15px;
       font-size: 0.95rem;
-      color: #6b7280;
+      color: var(--text-secondary);
       text-align: center;
+      padding: 12px 20px;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 8px;
+      border-left: 4px solid var(--primary-amber);
+      backdrop-filter: blur(5px);
+    }
+    
+    #status.success {
+      color: var(--success-green);
+      border-left-color: var(--success-green);
+    }
+    
+    #status.warning {
+      color: var(--warning-amber);
+      border-left-color: var(--warning-amber);
+    }
+    
+    /* Responsive design */
+    @media (max-width: 480px) {
+      .container {
+        padding: 20px;
+        margin: 0 10px;
+      }
+      
+      h1 {
+        font-size: 1.8rem;
+      }
     }
   </style>
 </head>
 <body>
   <h1>Product Exchange</h1>
   <p class="subtitle">Generate unique code and classify product for exchange</p>
-
   <div class="container">
     <button onclick="generateRFID()">Generate RFID Code</button>
     <input type="text" id="rfidCode" placeholder="RFID Code" readonly>
-
     <input type="file" id="imageInput" accept="image/*" style="display: none;">
     <button onclick="document.getElementById('imageInput').click()">Upload Product Image</button>
     <button onclick="classify()">Classify for Exchange</button>
   </div>
-
   <img id="preview" alt="Image Preview">
-
   <p id="status">Status: Waiting...</p>
-
   <script>
     let model;
     async function loadModel() {
       const modelURL = 'https://raw.githubusercontent.com/SmaranNadig/retrack-website/main/model/model.json';
-      model = await tf.loadLayersModel(modelURL);
-      document.getElementById('status').innerText = 'Status: Model loaded ✅';
+      try {
+        model = await tf.loadLayersModel(modelURL);
+        const statusEl = document.getElementById('status');
+        statusEl.innerText = 'Status: Model loaded ✅';
+        statusEl.className = 'success';
+      } catch (error) {
+        const statusEl = document.getElementById('status');
+        statusEl.innerText = 'Status: Error loading model ❌';
+        statusEl.className = 'warning';
+      }
     }
     loadModel();
-
+    
     function generateRFID() {
       const code = 'RFID-' + Math.random().toString(36).substr(2, 8).toUpperCase();
       document.getElementById('rfidCode').value = code;
+      const statusEl = document.getElementById('status');
+      statusEl.innerText = 'Status: RFID code generated';
+      statusEl.className = 'success';
     }
-
+    
     async function classify() {
       const file = document.getElementById('imageInput').files[0];
       if (!file) {
         alert('Please upload an image');
         return;
       }
-
+      
+      const statusEl = document.getElementById('status');
+      statusEl.innerText = 'Status: Processing image...';
+      statusEl.className = 'warning';
+      
       const img = document.getElementById('preview');
       img.src = URL.createObjectURL(file);
       img.style.display = 'block';
-
+      
       img.onload = async () => {
-        const tensor = tf.browser.fromPixels(img).resizeBilinear([224, 224]).div(255).expandDims(0);
-        const prediction = await model.predict(tensor).data();
-        const label = prediction[0] > 0.5 ? 'Refundable' : 'Exchange';
-        document.getElementById('status').innerText = `Product classified: ${label}`;
-        sendToThingSpeak(label, 'camera-or-gallery');
+        try {
+          const tensor = tf.browser.fromPixels(img).resizeBilinear([224, 224]).div(255).expandDims(0);
+          const prediction = await model.predict(tensor).data();
+          const label = prediction[0] > 0.5 ? 'Refundable' : 'Exchange';
+          statusEl.innerText = `Product classified: ${label}`;
+          statusEl.className = 'success';
+          sendToThingSpeak(label, 'camera-or-gallery');
+        } catch (error) {
+          statusEl.innerText = 'Status: Classification failed ❌';
+          statusEl.className = 'warning';
+        }
       };
     }
-
+    
     function sendToThingSpeak(result, source) {
       const apiKey = 'ORZJ88EUT7HLBIQC';
       fetch(`https://api.thingspeak.com/update?api_key=${apiKey}&field5=${result}&status=${source}`);
