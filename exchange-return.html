@@ -268,13 +268,13 @@
           const resultEl = document.getElementById('result');
           resultEl.style.display = 'block';
           
-          if (maxIndex === 0) { // Broken product
+          if (maxIndex === 0) { // Broken product (refundable)
             resultEl.innerText = '✅ Product Broken, will be refunded';
             resultEl.className = 'refund';
             statusEl.innerText = 'Status: Classification complete - Refund eligible ✅';
             // Hide proceed button for refund cases
             document.getElementById('proceedBtn').style.display = 'none';
-          } else { // Not broken
+          } else { // Not broken (non-refundable, eligible for exchange)
             resultEl.innerText = '🔄 Product eligible for exchange';
             resultEl.className = 'exchange';
             statusEl.innerText = 'Status: Classification complete - Exchange eligible ✅';
@@ -340,13 +340,13 @@
         const resultEl = document.getElementById('result');
         resultEl.style.display = 'block';
 
-        if (maxIndex === 0) { // Broken product
+        if (maxIndex === 0) { // Broken product (refundable)
           resultEl.innerText = '✅ Product Broken, will be refunded';
           resultEl.className = 'refund';
           document.getElementById('status').innerText = 'Status: Classification complete - Refund eligible ✅';
           // Hide proceed button for refund cases
           document.getElementById('proceedBtn').style.display = 'none';
-        } else { // Not broken
+        } else { // Not broken (non-refundable, eligible for exchange)
           resultEl.innerText = '🔄 Product eligible for exchange';
           resultEl.className = 'exchange';
           document.getElementById('status').innerText = 'Status: Classification complete - Exchange eligible ✅';
