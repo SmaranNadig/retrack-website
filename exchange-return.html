@@ -239,57 +239,56 @@
     }
     loadModel();
     
+  
     async function classify() {
-      const file = document.getElementById('imageInput').files[0];
-      if (!file) {
-        alert('Please upload an image');
-        return;
-      }
-      
-      const statusEl = document.getElementById('status');
-      statusEl.innerText = 'Status: Processing image...';
-      statusEl.className = 'warning';
-      
-      const img = document.getElementById('preview');
-      img.src = URL.createObjectURL(file);
-      img.style.display = 'block';
-      
-      img.onload = async () => {
-        try {
-          const image = tf.browser.fromPixels(img);
-          const resized = tf.image.resizeBilinear(image, [224, 224]);
-          const normalized = resized.div(255.0);
-          const batched = normalized.expandDims(0);
+  const file = document.getElementById('imageInput').files[0];
+  if (!file) {
+    alert('Please upload an image');
+    return;
+  }
 
-          const prediction = await model.predict(batched).data();
-          const maxIndex = prediction.indexOf(Math.max(...prediction));
-          const confidence = prediction[maxIndex];
-          
-          const resultEl = document.getElementById('result');
-          resultEl.style.display = 'block';
-          
-          if (maxIndex === 0) { // Broken product (refundable)
-            resultEl.innerText = '✅ Product Broken, will be refunded';
-            resultEl.className = 'refund';
-            statusEl.innerText = 'Status: Classification complete - Refund eligible ✅';
-            // Hide proceed button for refund cases
-            document.getElementById('proceedBtn').style.display = 'none';
-          } else { // Not broken (non-refundable, eligible for exchange)
-            resultEl.innerText = '🔄 Product eligible for exchange';
-            resultEl.className = 'exchange';
-            statusEl.innerText = 'Status: Classification complete - Exchange eligible ✅';
-            // Show proceed button only for exchange cases
-            document.getElementById('proceedBtn').style.display = 'block';
-          }
-          
-          statusEl.className = 'success';
-          
-        } catch (error) {
-          statusEl.innerText = 'Status: Classification failed ❌';
-          statusEl.className = 'warning';
-        }
-      };
+  const statusEl = document.getElementById('status');
+  statusEl.innerText = 'Status: Processing image...';
+  statusEl.className = 'warning';
+
+  const img = document.getElementById('preview');
+  img.src = URL.createObjectURL(file);
+  img.style.display = 'block';
+
+  img.onload = async () => {
+    try {
+      const image = tf.browser.fromPixels(img);
+      const resized = tf.image.resizeBilinear(image, [224, 224]);
+      const normalized = resized.div(255.0);
+      const batched = normalized.expandDims(0);
+
+      const prediction = await model.predict(batched).data();
+      const maxIndex = prediction.indexOf(Math.max(...prediction));
+      const confidence = prediction[maxIndex];
+
+      const resultEl = document.getElementById('result');
+      resultEl.style.display = 'block';
+
+      if (maxIndex === 0) {
+        resultEl.innerText = '✅ Product is broken and eligible for refund';
+        resultEl.className = 'refund';
+        statusEl.innerText = 'Status: Refund eligible ✅';
+        document.getElementById('proceedBtn').style.display = 'none';
+      } else {
+        resultEl.innerText = '🔄 Eligible for exchange';
+        resultEl.className = 'exchange';
+        statusEl.innerText = 'Status: Exchange eligible ✅';
+        document.getElementById('proceedBtn').style.display = 'block';
+      }
+
+      statusEl.className = 'success';
+
+    } catch (error) {
+      statusEl.innerText = 'Status: Classification failed ❌';
+      statusEl.className = 'warning';
     }
+  };
+}
 
     function startCamera() {
       const video = document.getElementById('camera');
@@ -311,58 +310,55 @@
         });
     }
 
-    async function captureFromCamera() {
-      const video = document.getElementById('camera');
-      const canvas = document.getElementById('canvas');
-      const context = canvas.getContext('2d');
+ async function captureFromCamera() {
+  const video = document.getElementById('camera');
+  const canvas = document.getElementById('canvas');
+  const context = canvas.getContext('2d');
 
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      context.drawImage(video, 0, 0);
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  context.drawImage(video, 0, 0);
 
-      const preview = document.getElementById('preview');
-      preview.src = canvas.toDataURL('image/jpeg');
-      preview.style.display = 'block';
+  const preview = document.getElementById('preview');
+  preview.src = canvas.toDataURL('image/jpeg');
+  preview.style.display = 'block';
 
-      const imgTensor = tf.browser.fromPixels(canvas);
-      const resized = tf.image.resizeBilinear(imgTensor, [224, 224]);
-      const normalized = resized.div(255.0);
-      const batched = normalized.expandDims(0);
+  const imgTensor = tf.browser.fromPixels(canvas);
+  const resized = tf.image.resizeBilinear(imgTensor, [224, 224]);
+  const normalized = resized.div(255.0);
+  const batched = normalized.expandDims(0);
 
-      document.getElementById('status').innerText = 'Status: Classifying camera image... 🔄';
-      document.getElementById('status').className = 'warning';
+  document.getElementById('status').innerText = 'Status: Classifying camera image... 🔄';
+  document.getElementById('status').className = 'warning';
 
-      try {
-        const prediction = await model.predict(batched).data();
-        const maxIndex = prediction.indexOf(Math.max(...prediction));
-        const confidence = prediction[maxIndex];
+  try {
+    const prediction = await model.predict(batched).data();
+    const maxIndex = prediction.indexOf(Math.max(...prediction));
+    const confidence = prediction[maxIndex];
 
-        const resultEl = document.getElementById('result');
-        resultEl.style.display = 'block';
+    const resultEl = document.getElementById('result');
+    resultEl.style.display = 'block';
 
-        if (maxIndex === 0) { // Broken product (refundable)
-          resultEl.innerText = '✅ Product Broken, will be refunded';
-          resultEl.className = 'refund';
-          document.getElementById('status').innerText = 'Status: Classification complete - Refund eligible ✅';
-          // Hide proceed button for refund cases
-          document.getElementById('proceedBtn').style.display = 'none';
-        } else { // Not broken (non-refundable, eligible for exchange)
-          resultEl.innerText = '🔄 Product eligible for exchange';
-          resultEl.className = 'exchange';
-          document.getElementById('status').innerText = 'Status: Classification complete - Exchange eligible ✅';
-          // Show proceed button only for exchange cases
-          document.getElementById('proceedBtn').style.display = 'block';
-        }
-
-        document.getElementById('status').className = 'success';
-
-      } catch (error) {
-        document.getElementById('status').innerText = `Status: Classification error - ${error.message} ❌`;
-        document.getElementById('status').className = 'warning';
-        console.error('Camera classification error:', error);
-      }
+    if (maxIndex === 0) {
+      resultEl.innerText = '✅ Product is broken and eligible for refund';
+      resultEl.className = 'refund';
+      document.getElementById('status').innerText = 'Status: Refund eligible ✅';
+      document.getElementById('proceedBtn').style.display = 'none';
+    } else {
+      resultEl.innerText = '🔄 Eligible for exchange';
+      resultEl.className = 'exchange';
+      document.getElementById('status').innerText = 'Status: Exchange eligible ✅';
+      document.getElementById('proceedBtn').style.display = 'block';
     }
-    
+
+    document.getElementById('status').className = 'success';
+
+  } catch (error) {
+    document.getElementById('status').innerText = `Status: Classification error - ${error.message} ❌`;
+    document.getElementById('status').className = 'warning';
+    console.error('Camera classification error:', error);
+  }
+}
     function proceedToOrderDetails() {
       // Navigate to orderdet.html
       window.location.href = 'orderdet.html';
