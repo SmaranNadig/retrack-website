@@ -218,7 +218,7 @@
   <img id="preview" alt="Image Preview">
   <div id="result"></div>
   <p id="status">Status: Waiting...</p>
-  <button id="proceedBtn" onclick="proceedToOrderDetails()">➡️ Proceed to Order Details</button>
+  <button id="proceedBtn" onclick="proceedToOrderDetails()">Proceed</button>
 
   <script>
     let model;
@@ -272,18 +272,17 @@
             resultEl.innerText = '✅ Product Broken, will be refunded';
             resultEl.className = 'refund';
             statusEl.innerText = 'Status: Classification complete - Refund eligible ✅';
-            sendToThingSpeak('Refundable', confidence, 'uploaded-image');
+            // Hide proceed button for refund cases
+            document.getElementById('proceedBtn').style.display = 'none';
           } else { // Not broken
             resultEl.innerText = '🔄 Product eligible for exchange';
             resultEl.className = 'exchange';
             statusEl.innerText = 'Status: Classification complete - Exchange eligible ✅';
-            sendToThingSpeak('Exchange', confidence, 'uploaded-image');
+            // Show proceed button only for exchange cases
+            document.getElementById('proceedBtn').style.display = 'block';
           }
           
           statusEl.className = 'success';
-          
-          // Show proceed button after classification
-          document.getElementById('proceedBtn').style.display = 'block';
           
         } catch (error) {
           statusEl.innerText = 'Status: Classification failed ❌';
@@ -345,42 +344,23 @@
           resultEl.innerText = '✅ Product Broken, will be refunded';
           resultEl.className = 'refund';
           document.getElementById('status').innerText = 'Status: Classification complete - Refund eligible ✅';
-          sendToThingSpeak('Refundable', confidence, 'captured-by-camera');
+          // Hide proceed button for refund cases
+          document.getElementById('proceedBtn').style.display = 'none';
         } else { // Not broken
           resultEl.innerText = '🔄 Product eligible for exchange';
           resultEl.className = 'exchange';
           document.getElementById('status').innerText = 'Status: Classification complete - Exchange eligible ✅';
-          sendToThingSpeak('Exchange', confidence, 'captured-by-camera');
+          // Show proceed button only for exchange cases
+          document.getElementById('proceedBtn').style.display = 'block';
         }
 
         document.getElementById('status').className = 'success';
-
-        // Show proceed button after classification
-        document.getElementById('proceedBtn').style.display = 'block';
 
       } catch (error) {
         document.getElementById('status').innerText = `Status: Classification error - ${error.message} ❌`;
         document.getElementById('status').className = 'warning';
         console.error('Camera classification error:', error);
       }
-    }
-    
-    function sendToThingSpeak(result, confidence, source) {
-      const apiKey = 'ORZJ88EUT7HLBIQC';
-      const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field5=${encodeURIComponent(result)}&field6=${confidence}&status=${encodeURIComponent(source)}`;
-
-      fetch(url)
-        .then(response => {
-          if (response.ok) {
-            document.getElementById('status').innerText += ' | Data sent to ThingSpeak 📡';
-          } else {
-            document.getElementById('status').innerText += ` | ThingSpeak error - ${response.status} ❌`;
-          }
-        })
-        .catch(error => {
-          document.getElementById('status').innerText += ` | Network error - ${error.message} ❌`;
-          console.error('ThingSpeak error:', error);
-        });
     }
     
     function proceedToOrderDetails() {
