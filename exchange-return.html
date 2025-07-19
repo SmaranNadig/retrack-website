@@ -271,7 +271,7 @@
     
 resultEl.classList.remove('refund', 'exchange');
 
-if (maxIndex === 0) {
+if (maxIndex === 1) {
   resultEl.innerText = '✅ Product is broken and eligible for refund';
   resultEl.classList.add('refund');
   statusEl.innerText = 'Status: Refund eligible ✅';
@@ -341,13 +341,11 @@ if (maxIndex === 0) {
     const resultEl = document.getElementById('result');
     resultEl.style.display = 'block';
 
-      console.log("Predictions:", prediction);
-  console.log("maxIndex:", maxIndex);
-  console.log("Confidence:", confidence);
+     
 
 resultEl.classList.remove('refund', 'exchange');
 
-if (maxIndex === 0) {
+if (maxIndex === 1) {
   resultEl.innerText = '✅ Product is broken and eligible for refund';
   resultEl.classList.add('refund');
   document.getElementById('status').innerText = 'Status: Refund eligible ✅';
