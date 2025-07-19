@@ -273,17 +273,19 @@ console.log("maxIndex:", maxIndex);
 console.log("Confidence:", confidence);
 
 
-      if (maxIndex === 0) {
-        resultEl.innerText = '✅ Product is broken and eligible for refund';
-        resultEl.className = 'refund';
-        statusEl.innerText = 'Status: Refund eligible ✅';
-        document.getElementById('proceedBtn').style.display = 'none';
-      } else {
-        resultEl.innerText = '🔄 Eligible for exchange';
-        resultEl.className = 'exchange';
-        statusEl.innerText = 'Status: Exchange eligible ✅';
-        document.getElementById('proceedBtn').style.display = 'block';
-      }
+resultEl.classList.remove('refund', 'exchange');
+
+if (maxIndex === 0) {
+  resultEl.innerText = '✅ Product is broken and eligible for refund';
+  resultEl.classList.add('refund');
+  statusEl.innerText = 'Status: Refund eligible ✅';
+  document.getElementById('proceedBtn').style.display = 'none';
+} else {
+  resultEl.innerText = '🔄 Eligible for exchange';
+  resultEl.classList.add('exchange');
+  statusEl.innerText = 'Status: Exchange eligible ✅';
+  document.getElementById('proceedBtn').style.display = 'block';
+}
 
       statusEl.className = 'success';
 
@@ -347,17 +349,19 @@ console.log("Confidence:", confidence);
   console.log("maxIndex:", maxIndex);
   console.log("Confidence:", confidence);
 
-    if (maxIndex === 0) {
-      resultEl.innerText = '✅ Product is broken and eligible for refund';
-      resultEl.className = 'refund';
-      document.getElementById('status').innerText = 'Status: Refund eligible ✅';
-      document.getElementById('proceedBtn').style.display = 'none';
-    } else {
-      resultEl.innerText = '🔄 Eligible for exchange';
-      resultEl.className = 'exchange';
-      document.getElementById('status').innerText = 'Status: Exchange eligible ✅';
-      document.getElementById('proceedBtn').style.display = 'block';
-    }
+resultEl.classList.remove('refund', 'exchange');
+
+if (maxIndex === 0) {
+  resultEl.innerText = '✅ Product is broken and eligible for refund';
+  resultEl.classList.add('refund');
+  document.getElementById('status').innerText = 'Status: Refund eligible ✅';
+  document.getElementById('proceedBtn').style.display = 'none';
+} else {
+  resultEl.innerText = '🔄 Eligible for exchange';
+  resultEl.classList.add('exchange');
+  document.getElementById('status').innerText = 'Status: Exchange eligible ✅';
+  document.getElementById('proceedBtn').style.display = 'block';
+}
 
     document.getElementById('status').className = 'success';
 
