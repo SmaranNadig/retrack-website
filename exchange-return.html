@@ -190,6 +190,16 @@
       color: #92400e;
     }
     
+    .debug-info {
+      margin-top: 10px;
+      padding: 10px;
+      background: rgba(100, 116, 139, 0.1);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      display: none;
+    }
+    
     /* Responsive design */
     @media (max-width: 480px) {
       .container {
@@ -217,6 +227,7 @@
   </div>
   <img id="preview" alt="Image Preview">
   <div id="result"></div>
+  <div id="debugInfo" class="debug-info"></div>
   <p id="status">Status: Waiting...</p>
   <button id="proceedBtn" onclick="proceedToOrderDetails()">Proceed</button>
 
@@ -235,9 +246,93 @@
         const statusEl = document.getElementById('status');
         statusEl.innerText = 'Status: Error loading model ❌';
         statusEl.className = 'warning';
+        console.error('Model loading error:', error);
       }
     }
     loadModel();
+    
+    async function classifyImage(imageElement) {
+      const statusEl = document.getElementById('status');
+      const debugEl = document.getElementById('debugInfo');
+      
+      statusEl.innerText = 'Status: Processing image...';
+      statusEl.className = 'warning';
+      
+      try {
+        // Preprocess the image
+        const image = tf.browser.fromPixels(imageElement);
+        const resized = tf.image.resizeBilinear(image, [224, 224]);
+        const normalized = resized.div(255.0);
+        const batched = normalized.expandDims(0);
+
+        // Get prediction
+        const prediction = await model.predict(batched).data();
+        
+        // Debug information
+        const predictionArray = Array.from(prediction);
+        debugEl.innerHTML = `
+          <strong>Debug Info:</strong><br>
+          Raw predictions: [${predictionArray.map(p => p.toFixed(4)).join(', ')}]<br>
+          Max value: ${Math.max(...predictionArray).toFixed(4)}<br>
+          Max index: ${predictionArray.indexOf(Math.max(...predictionArray))}
+        `;
+        debugEl.style.display = 'block';
+        
+        // Find the class with highest probability
+        const maxIndex = predictionArray.indexOf(Math.max(...predictionArray));
+        const confidence = predictionArray[maxIndex];
+        
+        const resultEl = document.getElementById('result');
+        resultEl.style.display = 'block';
+        
+        // Assuming model outputs: [broken_probability, not_broken_probability]
+        // Or it might be the opposite - let's check both scenarios
+        
+        // Set a confidence threshold
+        const confidenceThreshold = 0.6;
+        
+        if (confidence < confidenceThreshold) {
+          // Low confidence - treat as uncertain
+          resultEl.innerText = `⚠️ Uncertain classification (${(confidence * 100).toFixed(1)}% confidence) - Please retake photo`;
+          resultEl.className = 'exchange';
+          statusEl.innerText = 'Status: Low confidence - Please retake photo ⚠️';
+          statusEl.className = 'warning';
+          document.getElementById('proceedBtn').style.display = 'none';
+        } else {
+          // High confidence classification
+          // Try both interpretations and let you decide which is correct
+          if (maxIndex === 0) {
+            // Index 0 is highest - could be "broken" or "not broken" depending on model
+            resultEl.innerText = `🔄 Product appears normal - eligible for exchange (${(confidence * 100).toFixed(1)}% confidence)`;
+            resultEl.className = 'exchange';
+            statusEl.innerText = 'Status: Classification complete - Exchange eligible ✅';
+            statusEl.className = 'success';
+            document.getElementById('proceedBtn').style.display = 'block';
+          } else {
+            // Index 1 is highest
+            resultEl.innerText = `✅ Product appears broken - will be refunded (${(confidence * 100).toFixed(1)}% confidence)`;
+            resultEl.className = 'refund';
+            statusEl.innerText = 'Status: Classification complete - Refund eligible ✅';
+            statusEl.className = 'success';
+            document.getElementById('proceedBtn').style.display = 'none';
+          }
+        }
+        
+        // Clean up tensors
+        image.dispose();
+        resized.dispose();
+        normalized.dispose();
+        batched.dispose();
+        
+      } catch (error) {
+        statusEl.innerText = 'Status: Classification failed ❌';
+        statusEl.className = 'warning';
+        console.error('Classification error:', error);
+        
+        debugEl.innerHTML = `<strong>Error:</strong> ${error.message}`;
+        debugEl.style.display = 'block';
+      }
+    }
     
     async function classify() {
       const file = document.getElementById('imageInput').files[0];
@@ -246,49 +341,11 @@
         return;
       }
       
-      const statusEl = document.getElementById('status');
-      statusEl.innerText = 'Status: Processing image...';
-      statusEl.className = 'warning';
-      
       const img = document.getElementById('preview');
       img.src = URL.createObjectURL(file);
       img.style.display = 'block';
       
-      img.onload = async () => {
-        try {
-          const image = tf.browser.fromPixels(img);
-          const resized = tf.image.resizeBilinear(image, [224, 224]);
-          const normalized = resized.div(255.0);
-          const batched = normalized.expandDims(0);
-
-          const prediction = await model.predict(batched).data();
-          const maxIndex = prediction.indexOf(Math.max(...prediction));
-          const confidence = prediction[maxIndex];
-          
-          const resultEl = document.getElementById('result');
-          resultEl.style.display = 'block';
-          
-          if (maxIndex === 0) { // Broken product (refundable)
-            resultEl.innerText = '✅ Product Broken, will be refunded';
-            resultEl.className = 'refund';
-            statusEl.innerText = 'Status: Classification complete - Refund eligible ✅';
-            // Hide proceed button for refund cases
-            document.getElementById('proceedBtn').style.display = 'none';
-          } else { // Not broken (non-refundable, eligible for exchange)
-            resultEl.innerText = '🔄 Product eligible for exchange';
-            resultEl.className = 'exchange';
-            statusEl.innerText = 'Status: Classification complete - Exchange eligible ✅';
-            // Show proceed button only for exchange cases
-            document.getElementById('proceedBtn').style.display = 'block';
-          }
-          
-          statusEl.className = 'success';
-          
-        } catch (error) {
-          statusEl.innerText = 'Status: Classification failed ❌';
-          statusEl.className = 'warning';
-        }
-      };
+      img.onload = () => classifyImage(img);
     }
 
     function startCamera() {
@@ -324,43 +381,8 @@
       preview.src = canvas.toDataURL('image/jpeg');
       preview.style.display = 'block';
 
-      const imgTensor = tf.browser.fromPixels(canvas);
-      const resized = tf.image.resizeBilinear(imgTensor, [224, 224]);
-      const normalized = resized.div(255.0);
-      const batched = normalized.expandDims(0);
-
-      document.getElementById('status').innerText = 'Status: Classifying camera image... 🔄';
-      document.getElementById('status').className = 'warning';
-
-      try {
-        const prediction = await model.predict(batched).data();
-        const maxIndex = prediction.indexOf(Math.max(...prediction));
-        const confidence = prediction[maxIndex];
-
-        const resultEl = document.getElementById('result');
-        resultEl.style.display = 'block';
-
-        if (maxIndex === 0) { // Broken product (refundable)
-          resultEl.innerText = '✅ Product Broken, will be refunded';
-          resultEl.className = 'refund';
-          document.getElementById('status').innerText = 'Status: Classification complete - Refund eligible ✅';
-          // Hide proceed button for refund cases
-          document.getElementById('proceedBtn').style.display = 'none';
-        } else { // Not broken (non-refundable, eligible for exchange)
-          resultEl.innerText = '🔄 Product eligible for exchange';
-          resultEl.className = 'exchange';
-          document.getElementById('status').innerText = 'Status: Classification complete - Exchange eligible ✅';
-          // Show proceed button only for exchange cases
-          document.getElementById('proceedBtn').style.display = 'block';
-        }
-
-        document.getElementById('status').className = 'success';
-
-      } catch (error) {
-        document.getElementById('status').innerText = `Status: Classification error - ${error.message} ❌`;
-        document.getElementById('status').className = 'warning';
-        console.error('Camera classification error:', error);
-      }
+      // Use the canvas as image source for classification
+      await classifyImage(canvas);
     }
     
     function proceedToOrderDetails() {
