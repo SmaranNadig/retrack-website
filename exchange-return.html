@@ -18,6 +18,8 @@
       --text-secondary: #64748b;
       --success-green: #22c55e;
       --warning-amber: #f59e0b;
+      --proceed-green: #10b981;
+      --proceed-dark: #059669;
     }
     
     * { 
@@ -122,6 +124,18 @@
       transform: translateY(0);
     }
     
+    #proceedBtn {
+      background: linear-gradient(135deg, var(--proceed-green) 0%, var(--proceed-dark) 100%);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      display: none;
+      margin-top: 20px;
+    }
+    
+    #proceedBtn:hover {
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+      background: linear-gradient(135deg, var(--proceed-dark) 0%, #047857 100%);
+    }
+    
     #preview {
       margin-top: 20px;
       max-width: 300px;
@@ -153,6 +167,29 @@
       border-left-color: var(--warning-amber);
     }
     
+    #result {
+      margin-top: 20px;
+      padding: 20px;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-align: center;
+      display: none;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+    
+    #result.refund {
+      background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+      border: 2px solid var(--success-green);
+      color: #15803d;
+    }
+    
+    #result.exchange {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border: 2px solid var(--warning-amber);
+      color: #92400e;
+    }
+    
     /* Responsive design */
     @media (max-width: 480px) {
       .container {
@@ -170,16 +207,23 @@
   <h1>Product Exchange</h1>
   <p class="subtitle">Generate unique code and classify product for exchange</p>
   <div class="container">
-    <button onclick="generateRFID()">Generate RFID Code</button>
-    <input type="text" id="rfidCode" placeholder="RFID Code" readonly>
     <input type="file" id="imageInput" accept="image/*" style="display: none;">
-    <button onclick="document.getElementById('imageInput').click()">Upload Product Image</button>
-    <button onclick="classify()">Classify for Exchange</button>
+    <button onclick="document.getElementById('imageInput').click()">📁 Upload from Gallery</button>
+    <button onclick="classify()">🔍 Classify Image</button>
+    <button onclick="startCamera()">📸 Use Camera</button>
+    <video id="camera" autoplay playsinline style="display: none; width: 100%; border-radius: 12px; border: 3px solid var(--primary-amber); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); margin-top: 15px;"></video>
+    <button onclick="captureFromCamera()" id="captureBtn" style="display:none;">📷 Capture Photo</button>
+    <canvas id="canvas" style="display: none;"></canvas>
   </div>
   <img id="preview" alt="Image Preview">
+  <div id="result"></div>
   <p id="status">Status: Waiting...</p>
+  <button id="proceedBtn" onclick="proceedToOrderDetails()">➡️ Proceed to Order Details</button>
+
   <script>
     let model;
+    let videoStream;
+
     async function loadModel() {
       const modelURL = 'https://raw.githubusercontent.com/SmaranNadig/retrack-website/main/model/model.json';
       try {
@@ -194,14 +238,6 @@
       }
     }
     loadModel();
-    
-    function generateRFID() {
-      const code = 'RFID-' + Math.random().toString(36).substr(2, 8).toUpperCase();
-      document.getElementById('rfidCode').value = code;
-      const statusEl = document.getElementById('status');
-      statusEl.innerText = 'Status: RFID code generated';
-      statusEl.className = 'success';
-    }
     
     async function classify() {
       const file = document.getElementById('imageInput').files[0];
@@ -220,22 +256,136 @@
       
       img.onload = async () => {
         try {
-          const tensor = tf.browser.fromPixels(img).resizeBilinear([224, 224]).div(255).expandDims(0);
-          const prediction = await model.predict(tensor).data();
-          const label = prediction[0] > 0.5 ? 'Refundable' : 'Exchange';
-          statusEl.innerText = `Product classified: ${label}`;
+          const image = tf.browser.fromPixels(img);
+          const resized = tf.image.resizeBilinear(image, [224, 224]);
+          const normalized = resized.div(255.0);
+          const batched = normalized.expandDims(0);
+
+          const prediction = await model.predict(batched).data();
+          const maxIndex = prediction.indexOf(Math.max(...prediction));
+          const confidence = prediction[maxIndex];
+          
+          const resultEl = document.getElementById('result');
+          resultEl.style.display = 'block';
+          
+          if (maxIndex === 0) { // Broken product
+            resultEl.innerText = '✅ Product Broken, will be refunded';
+            resultEl.className = 'refund';
+            statusEl.innerText = 'Status: Classification complete - Refund eligible ✅';
+            sendToThingSpeak('Refundable', confidence, 'uploaded-image');
+          } else { // Not broken
+            resultEl.innerText = '🔄 Product eligible for exchange';
+            resultEl.className = 'exchange';
+            statusEl.innerText = 'Status: Classification complete - Exchange eligible ✅';
+            sendToThingSpeak('Exchange', confidence, 'uploaded-image');
+          }
+          
           statusEl.className = 'success';
-          sendToThingSpeak(label, 'camera-or-gallery');
+          
+          // Show proceed button after classification
+          document.getElementById('proceedBtn').style.display = 'block';
+          
         } catch (error) {
           statusEl.innerText = 'Status: Classification failed ❌';
           statusEl.className = 'warning';
         }
       };
     }
+
+    function startCamera() {
+      const video = document.getElementById('camera');
+      const captureBtn = document.getElementById('captureBtn');
+
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(stream => {
+          video.srcObject = stream;
+          videoStream = stream;
+          video.style.display = 'block';
+          captureBtn.style.display = 'inline-block';
+          document.getElementById('status').innerText = 'Status: Camera active 📹';
+          document.getElementById('status').className = 'success';
+        })
+        .catch(error => {
+          document.getElementById('status').innerText = `Status: Camera error - ${error.message} ❌`;
+          document.getElementById('status').className = 'warning';
+          console.error('Camera error:', error);
+        });
+    }
+
+    async function captureFromCamera() {
+      const video = document.getElementById('camera');
+      const canvas = document.getElementById('canvas');
+      const context = canvas.getContext('2d');
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0);
+
+      const preview = document.getElementById('preview');
+      preview.src = canvas.toDataURL('image/jpeg');
+      preview.style.display = 'block';
+
+      const imgTensor = tf.browser.fromPixels(canvas);
+      const resized = tf.image.resizeBilinear(imgTensor, [224, 224]);
+      const normalized = resized.div(255.0);
+      const batched = normalized.expandDims(0);
+
+      document.getElementById('status').innerText = 'Status: Classifying camera image... 🔄';
+      document.getElementById('status').className = 'warning';
+
+      try {
+        const prediction = await model.predict(batched).data();
+        const maxIndex = prediction.indexOf(Math.max(...prediction));
+        const confidence = prediction[maxIndex];
+
+        const resultEl = document.getElementById('result');
+        resultEl.style.display = 'block';
+
+        if (maxIndex === 0) { // Broken product
+          resultEl.innerText = '✅ Product Broken, will be refunded';
+          resultEl.className = 'refund';
+          document.getElementById('status').innerText = 'Status: Classification complete - Refund eligible ✅';
+          sendToThingSpeak('Refundable', confidence, 'captured-by-camera');
+        } else { // Not broken
+          resultEl.innerText = '🔄 Product eligible for exchange';
+          resultEl.className = 'exchange';
+          document.getElementById('status').innerText = 'Status: Classification complete - Exchange eligible ✅';
+          sendToThingSpeak('Exchange', confidence, 'captured-by-camera');
+        }
+
+        document.getElementById('status').className = 'success';
+
+        // Show proceed button after classification
+        document.getElementById('proceedBtn').style.display = 'block';
+
+      } catch (error) {
+        document.getElementById('status').innerText = `Status: Classification error - ${error.message} ❌`;
+        document.getElementById('status').className = 'warning';
+        console.error('Camera classification error:', error);
+      }
+    }
     
-    function sendToThingSpeak(result, source) {
+    function sendToThingSpeak(result, confidence, source) {
       const apiKey = 'ORZJ88EUT7HLBIQC';
-      fetch(`https://api.thingspeak.com/update?api_key=${apiKey}&field5=${result}&status=${source}`);
+      const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field5=${encodeURIComponent(result)}&field6=${confidence}&status=${encodeURIComponent(source)}`;
+
+      fetch(url)
+        .then(response => {
+          if (response.ok) {
+            document.getElementById('status').innerText += ' | Data sent to ThingSpeak 📡';
+          } else {
+            document.getElementById('status').innerText += ` | ThingSpeak error - ${response.status} ❌`;
+          }
+        })
+        .catch(error => {
+          document.getElementById('status').innerText += ` | Network error - ${error.message} ❌`;
+          console.error('ThingSpeak error:', error);
+        });
+    }
+    
+    function proceedToOrderDetails() {
+      // Navigate to orderdet.html
+      window.location.href = 'orderdet.html';
     }
   </script>
 </body>
