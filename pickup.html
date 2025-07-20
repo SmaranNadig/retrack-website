@@ -1,4 +1,9 @@
-<!DOCTYPE html>
+// Enter key handler for order input
+    document.getElementById('orderIdInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        lookupOrder();
+      }
+    });<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -197,10 +202,24 @@
       font-size: 0.85rem;
       color: #6c757d;
     }
+
+    .test-section {
+      background: #f0f9ff;
+      border: 1px solid #0ea5e9;
+    }
+
+    .timer-display {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #2563eb;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
   <h1>Pickup Dashboard</h1>
+  
+
   
   <!-- Order Lookup Section -->
   <div class="section">
@@ -239,11 +258,13 @@
   <div class="section">
     <h2>📦 Pickup Monitoring</h2>
     <div class="form-group">
-      <input type="text" id="rfid" placeholder="Enter RFID Code" />
       <div class="form-row">
         <button onclick="startPickup()" class="success-btn" id="startBtn">Start Pickup</button>
         <button onclick="dropPickup()" class="danger-btn" id="dropBtn" disabled>Drop Pickup</button>
       </div>
+    </div>
+    <div id="timerDisplay" class="timer-display hidden">
+      Timer: <span id="timerText">00:00</span>
     </div>
   </div>
   
@@ -257,12 +278,81 @@
     
     let startData;
     let currentOrderData;
+    let pickupTimer;
+    let startTime;
 
     function showDebugInfo(info) {
       const debugDiv = document.getElementById('debugInfo');
       debugDiv.innerHTML = `<strong>Debug:</strong> ${info}`;
       debugDiv.classList.remove('hidden');
       console.log('Debug:', info);
+    }
+
+    function showResult(message, statusClass) {
+      const resultDiv = document.getElementById('result');
+      resultDiv.textContent = message;
+      resultDiv.className = statusClass;
+    }
+
+    function updateTimer() {
+      if (!startTime) return;
+      
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const minutes = Math.floor(elapsed / 60);
+      const seconds = elapsed % 60;
+      
+      document.getElementById('timerText').textContent = 
+        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    function startTimer() {
+      startTime = Date.now();
+      document.getElementById('timerDisplay').classList.remove('hidden');
+      pickupTimer = setInterval(updateTimer, 1000);
+      updateTimer();
+    }
+
+    function stopTimer() {
+      if (pickupTimer) {
+        clearInterval(pickupTimer);
+        pickupTimer = null;
+      }
+      startTime = null;
+      document.getElementById('timerDisplay').classList.add('hidden');
+    }
+
+    // Test connection functionality
+    async function testConnection() {
+      const testBtn = document.getElementById('testBtn');
+      testBtn.disabled = true;
+      testBtn.textContent = 'Testing...';
+      
+      try {
+        showResult('Testing connection...', 'status-monitoring');
+        showDebugInfo('Testing connection to Google Apps Script...');
+        
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'GET',
+          mode: 'cors'
+        });
+        
+        showDebugInfo(`Response status: ${response.status}, OK: ${response.ok}`);
+        
+        if (response.ok) {
+          const text = await response.text();
+          showResult('✅ Connection successful!', 'status-refundable');
+          showDebugInfo(`Response: ${text.substring(0, 100)}...`);
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Connection test failed:', error);
+        showResult(`❌ Connection failed: ${error.message}`, 'status-error');
+        showDebugInfo(`Connection error: ${error.message}`);
+      } finally {
+        testBtn.disabled = false;
+        testBtn.textContent = 'Test Connection';
+      }
     }
 
     // Order lookup functionality with better error handling
@@ -315,17 +405,18 @@
         if (result.success && result.data) {
           currentOrderData = result.data;
           displayOrderInfo(result.data);
-          showResult(`Order found: ${result.data.orderId}`, 'status-refundable');
           
           // Auto-populate RFID field if available
           if (result.data.rfidUid) {
-            document.getElementById('rfid').value = result.data.rfidUid;
+            showResult(`Order found: ${result.data.orderId} - Ready for pickup`, 'status-refundable');
+          } else {
+            showResult(`Order found: ${result.data.orderId} - No RFID available`, 'status-exchange');
           }
           
           document.getElementById('debugInfo').classList.add('hidden');
         } else {
           orderInfo.classList.add('hidden');
-          showResult(`Error: ${result.error || 'Unknown error'}`, 'status-error');
+          showResult(`Error: ${result.error || 'Order not found'}`, 'status-error');
           showDebugInfo(`API Error: ${result.error}`);
         }
       } catch (error) {
@@ -361,14 +452,155 @@
       
       document.getElementById('orderInfo').classList.remove('hidden');
     }
-    
-    // Test connection button functionality
-    async function testConnection() {
+
+    // Start pickup functionality
+    async function startPickup() {
+      if (!currentOrderData || !currentOrderData.rfidUid) {
+        showResult('Please lookup an order first to get RFID code', 'status-error');
+        return;
+      }
+      
+      const rfid = currentOrderData.rfidUid;
+      const startBtn = document.getElementById('startBtn');
+      const dropBtn = document.getElementById('dropBtn');
+      
+      startBtn.disabled = true;
+      startBtn.textContent = 'Starting...';
+      showResult('Starting pickup monitoring...', 'status-monitoring');
+      
       try {
-        showResult('Testing connection...', 'status-monitoring');
-        showDebugInfo('Testing GET request...');
+        const requestData = {
+          action: 'startPickup',
+          rfidUid: rfid
+        };
+        
+        console.log('Start pickup request:', requestData);
+        showDebugInfo('Sending start pickup request...');
         
         const response = await fetch(GOOGLE_SCRIPT_URL, {
-          method: 'GET',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestData),
           mode: 'cors'
         });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+        
+        const result = await response.json();
+        console.log('Start pickup response:', result);
+        
+        if (result.success) {
+          startData = result.data;
+          showResult(`✅ Pickup started for: ${startData.orderId}`, 'status-monitoring');
+          showDebugInfo(`Pickup started: ${JSON.stringify(result.data)}`);
+          
+          // Update UI state
+          startBtn.disabled = true;
+          dropBtn.disabled = false;
+          startTimer();
+          
+        } else {
+          throw new Error(result.error || 'Failed to start pickup');
+        }
+        
+      } catch (error) {
+        console.error('Start pickup error:', error);
+        showResult(`❌ Start pickup failed: ${error.message}`, 'status-error');
+        showDebugInfo(`Start pickup error: ${error.message}`);
+        
+        // Reset button state
+        startBtn.disabled = false;
+        startBtn.textContent = 'Start Pickup';
+      }
+    }
+
+    // Drop pickup functionality
+    async function dropPickup() {
+      if (!startData) {
+        showResult('No active pickup to drop', 'status-error');
+        return;
+      }
+      
+      const dropBtn = document.getElementById('dropBtn');
+      const startBtn = document.getElementById('startBtn');
+      
+      dropBtn.disabled = true;
+      dropBtn.textContent = 'Dropping...';
+      showResult('Dropping pickup...', 'status-monitoring');
+      
+      try {
+        const requestData = {
+          action: 'dropPickup',
+          rfidUid: startData.rfidUid,
+          orderId: startData.orderId
+        };
+        
+        console.log('Drop pickup request:', requestData);
+        showDebugInfo('Sending drop pickup request...');
+        
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestData),
+          mode: 'cors'
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+        
+        const result = await response.json();
+        console.log('Drop pickup response:', result);
+        
+        if (result.success) {
+          const elapsed = result.data.elapsed || 'unknown';
+          showResult(`✅ Pickup dropped. Duration: ${elapsed}`, 'status-refundable');
+          showDebugInfo(`Pickup completed: ${JSON.stringify(result.data)}`);
+          
+          // Reset UI state
+          startBtn.disabled = false;
+          dropBtn.disabled = true;
+          dropBtn.textContent = 'Drop Pickup';
+          startData = null;
+          stopTimer();
+          
+        } else {
+          throw new Error(result.error || 'Failed to drop pickup');
+        }
+        
+      } catch (error) {
+        console.error('Drop pickup error:', error);
+        showResult(`❌ Drop pickup failed: ${error.message}`, 'status-error');
+        showDebugInfo(`Drop pickup error: ${error.message}`);
+        
+        // Reset button state but keep pickup active
+        dropBtn.disabled = false;
+        dropBtn.textContent = 'Drop Pickup';
+      }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      showResult('System ready. Lookup an order to begin.', 'status-waiting');
+      console.log('Pickup Monitor initialized');
+      console.log('Script URL:', GOOGLE_SCRIPT_URL);
+    });
+
+    // Handle page visibility for timer accuracy
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden && pickupTimer) {
+        // Page became visible again, sync timer
+        updateTimer();
+      }
+    });
+  </script>
+</body>
+</html>
