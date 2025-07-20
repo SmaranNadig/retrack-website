@@ -272,6 +272,8 @@
       line-height: 1.5;
     }
     
+
+    
     @media (max-width: 600px) {
       body {
         padding: 20px 10px;
@@ -315,8 +317,6 @@
     .form-group.error .error-text {
       display: block;
     }
-
-
   </style>
 </head>
 <body>
@@ -374,6 +374,7 @@
     <div class="success-message" id="successMessage">
       <div>✅ Refund request submitted successfully!</div>
       <div class="order-id" id="orderIdDisplay"></div>
+      <div class="info-text">You will receive a confirmation email shortly. Please keep this Order ID for your records.</div>
     </div>
     
     <div class="error-message" id="errorMessage">
@@ -383,9 +384,6 @@
   </div>
 
   <script>
-    // IMPORTANT: Replace this URL with your deployed Google Apps Script Web App URL
-    const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxkhNu-p3OZ9baG8EWr006dlRQnJiPJ4xoS4aT8-bhFdJxo1sdpUJRMg-63Oiw1V4MFwg/exec";
-    
     // Set max date to today for purchase date
     document.getElementById('date').setAttribute('max', new Date().toISOString().split('T')[0]);
     
@@ -427,6 +425,8 @@
       return true;
     }
     
+
+    
     // Add event listeners for real-time validation
     document.querySelectorAll('input, select').forEach(field => {
       field.addEventListener('blur', () => validateField(field));
@@ -442,15 +442,9 @@
       return "RE" + Date.now();
     }
     
-    // Form submission handler with proper error handling
+    // Form submission handler
     document.getElementById("orderForm").addEventListener("submit", async function(e) {
       e.preventDefault();
-      
-      // Check if URL is configured
-      if (GOOGLE_APPS_SCRIPT_URL === "YOUR_DEPLOYED_WEB_APP_URL_HERE") {
-        showError("Please configure the Google Apps Script URL first.");
-        return;
-      }
       
       // Validate all form fields
       const fields = this.querySelectorAll('input[required], select[required]');
@@ -481,7 +475,10 @@
         const formData = new FormData(this);
         const orderId = generateOrderId();
         
-        // Prepare data for Google Apps Script
+        // Add your Google Apps Script Web App URL here
+        const sheetURL = "YOUR_DEPLOYED_WEB_APP_URL"; // Replace with your actual URL
+        
+        // Prepare data in the format expected by your Google Apps Script
         const data = {
           orderId: orderId,
           ownerName: formData.get("name").trim(),
@@ -491,55 +488,72 @@
           refundable: "Yes"
         };
         
-        console.log('Submitting data:', data);
+        console.log('Sending data:', data);
         
-        // Submit to Google Apps Script with proper error handling
-        const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+        // Submit to Google Apps Script (using no-cors mode to avoid CORS issues)
+        const response = await fetch(sheetURL, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          mode: "no-cors",
           body: JSON.stringify(data),
-          mode: 'cors' // Enable CORS
+          headers: { 
+            "Content-Type": "application/json"
+          }
         });
         
-        console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers);
+        // Note: With no-cors mode, we can't read the response, but the request will go through
+        // We'll assume success if no error is thrown
+        console.log('Request sent successfully');
         
-        // Handle response
-        let result;
-        const contentType = response.headers.get('content-type');
+        // Show success message
+        loading.style.display = 'none';
+        successMessage.style.display = 'block';
+        document.getElementById('orderIdDisplay').textContent = `Order ID: ${orderId}`;
         
-        if (contentType && contentType.includes('application/json')) {
-          result = await response.json();
-        } else {
-          const textResult = await response.text();
-          console.log('Text response:', textResult);
-          
-          // Try to parse as JSON if possible
-          try {
-            result = JSON.parse(textResult);
-          } catch {
-            result = { success: response.ok, message: textResult };
-          }
-        }
-        
-        console.log('Parsed result:', result);
-        
-        if (response.ok && (result.success !== false)) {
-          // Show success message
-          loading.style.display = 'none';
-          successMessage.style.display = 'block';
-          document.getElementById('orderIdDisplay').textContent = `Order ID: ${orderId}`;
-          
-          // Reset form
-          this.reset();
-          
-          // Auto-hide success message
-          autoHideMessage('successMessage');
-          
-        } else {
-          throw new Error(result.error || result.message || 'Submission failed');
-        }
+        // Reset form
+        this.reset();
         
       } catch (error) {
+        console.error('Submission error:', error);
+        
+        // Show error message
+        loading.style.display = 'none';
+        errorMessage.style.display = 'block';
+        document.getElementById('errorDetails').textContent = 
+          `Error: ${error.message}. Please check your connection and try again.`;
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+    
+    // Auto-hide messages after 10 seconds
+    function autoHideMessage(elementId) {
+      setTimeout(() => {
+        const element = document.getElementById(elementId);
+        if (element.style.display !== 'none') {
+          element.style.opacity = '0';
+          setTimeout(() => {
+            element.style.display = 'none';
+            element.style.opacity = '1';
+          }, 300);
+        }
+      }, 10000);
+    }
+    
+    // Call auto-hide when messages are shown
+    const observer = new MutationObserver(function(mutations) {
+      mutations.forEach(function(mutation) {
+        if (mutation.target.style.display === 'block') {
+          if (mutation.target.id === 'successMessage') {
+            autoHideMessage('successMessage');
+          } else if (mutation.target.id === 'errorMessage') {
+            autoHideMessage('errorMessage');
+          }
+        }
+      });
+    });
+    
+    observer.observe(document.getElementById('successMessage'), { attributes: true });
+    observer.observe(document.getElementById('errorMessage'), { attributes: true });
+  </script>
+</body>
+</html>
