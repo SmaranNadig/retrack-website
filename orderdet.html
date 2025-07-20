@@ -272,8 +272,6 @@
       line-height: 1.5;
     }
     
-
-    
     @media (max-width: 600px) {
       body {
         padding: 20px 10px;
@@ -317,6 +315,8 @@
     .form-group.error .error-text {
       display: block;
     }
+
+
   </style>
 </head>
 <body>
@@ -384,6 +384,9 @@
   </div>
 
   <script>
+    // IMPORTANT: Replace this URL with your deployed Google Apps Script Web App URL
+    const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw-9OvGDMm8ujknQyV5BP0ffrfsAM61u2o5KjMbwMcTJzEvFTOg_vjhtOmUi2HfdCjk6w/exec";
+    
     // Set max date to today for purchase date
     document.getElementById('date').setAttribute('max', new Date().toISOString().split('T')[0]);
     
@@ -425,8 +428,6 @@
       return true;
     }
     
-
-    
     // Add event listeners for real-time validation
     document.querySelectorAll('input, select').forEach(field => {
       field.addEventListener('blur', () => validateField(field));
@@ -442,9 +443,15 @@
       return "RE" + Date.now();
     }
     
-    // Form submission handler
+    // Form submission handler with proper error handling
     document.getElementById("orderForm").addEventListener("submit", async function(e) {
       e.preventDefault();
+      
+      // Check if URL is configured
+      if (GOOGLE_APPS_SCRIPT_URL === "YOUR_DEPLOYED_WEB_APP_URL_HERE") {
+        showError("Please configure the Google Apps Script URL first.");
+        return;
+      }
       
       // Validate all form fields
       const fields = this.querySelectorAll('input[required], select[required]');
@@ -475,10 +482,7 @@
         const formData = new FormData(this);
         const orderId = generateOrderId();
         
-        // Add your Google Apps Script Web App URL here
-        const sheetURL = "https://script.google.com/macros/s/AKfycbwFRKgQD0E1F34KndSEra1bCb8a7TlPpy-T0EOIKjqyrxvoes202RAlP8oUliWX-jmccA/exec"; // Replace with your actual URL
-        
-        // Prepare data in the format expected by your Google Apps Script
+        // Prepare data for Google Apps Script
         const data = {
           orderId: orderId,
           ownerName: formData.get("name").trim(),
@@ -488,74 +492,55 @@
           refundable: "Yes"
         };
         
-        console.log('Sending data:', data);
+        console.log('Submitting data:', data);
         
-        // Submit to Google Apps Script
-        const response = await fetch(sheetURL, {
+        // Submit to Google Apps Script with proper error handling
+        const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
           method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify(data),
-          headers: { 
-            "Content-Type": "application/json"
-          }
+          mode: 'cors' // Enable CORS
         });
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
         
-        const result = await response.text();
-        console.log('Response:', result);
+        // Handle response
+        let result;
+        const contentType = response.headers.get('content-type');
         
-        // Show success message
-        loading.style.display = 'none';
-        successMessage.style.display = 'block';
-        document.getElementById('orderIdDisplay').textContent = `Order ID: ${orderId}`;
-        
-        // Reset form
-        this.reset();
-        
-      } catch (error) {
-        console.error('Submission error:', error);
-        
-        // Show error message
-        loading.style.display = 'none';
-        errorMessage.style.display = 'block';
-        document.getElementById('errorDetails').textContent = 
-          `Error: ${error.message}. Please check your connection and try again.`;
-      } finally {
-        submitBtn.disabled = false;
-      }
-    });
-    
-    // Auto-hide messages after 10 seconds
-    function autoHideMessage(elementId) {
-      setTimeout(() => {
-        const element = document.getElementById(elementId);
-        if (element.style.display !== 'none') {
-          element.style.opacity = '0';
-          setTimeout(() => {
-            element.style.display = 'none';
-            element.style.opacity = '1';
-          }, 300);
-        }
-      }, 10000);
-    }
-    
-    // Call auto-hide when messages are shown
-    const observer = new MutationObserver(function(mutations) {
-      mutations.forEach(function(mutation) {
-        if (mutation.target.style.display === 'block') {
-          if (mutation.target.id === 'successMessage') {
-            autoHideMessage('successMessage');
-          } else if (mutation.target.id === 'errorMessage') {
-            autoHideMessage('errorMessage');
+        if (contentType && contentType.includes('application/json')) {
+          result = await response.json();
+        } else {
+          const textResult = await response.text();
+          console.log('Text response:', textResult);
+          
+          // Try to parse as JSON if possible
+          try {
+            result = JSON.parse(textResult);
+          } catch {
+            result = { success: response.ok, message: textResult };
           }
         }
-      });
-    });
-    
-    observer.observe(document.getElementById('successMessage'), { attributes: true });
-    observer.observe(document.getElementById('errorMessage'), { attributes: true });
-  </script>
-</body>
-</html>
+        
+        console.log('Parsed result:', result);
+        
+        if (response.ok && (result.success !== false)) {
+          // Show success message
+          loading.style.display = 'none';
+          successMessage.style.display = 'block';
+          document.getElementById('orderIdDisplay').textContent = `Order ID: ${orderId}`;
+          
+          // Reset form
+          this.reset();
+          
+          // Auto-hide success message
+          autoHideMessage('successMessage');
+          
+        } else {
+          throw new Error(result.error || result.message || 'Submission failed');
+        }
+        
+      } catch (error) {
