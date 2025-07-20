@@ -1,4 +1,9 @@
-<!DOCTYPE html>
+// Enter key handler for order input
+    document.getElementById('orderIdInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        lookupOrder();
+      }
+    });<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -214,6 +219,18 @@
 <body>
   <h1>Pickup Dashboard</h1>
   
+  <!-- Connection Status -->
+  <div class="section test-section">
+    <h2>🔗 Connection Status</h2>
+    <div class="form-group">
+      <button onclick="testConnection()" id="testBtn">Test Connection</button>
+      <div id="connectionStatus" class="order-detail hidden">
+        <span><strong>Status:</strong></span>
+        <span id="connectionStatusText">Not tested</span>
+      </div>
+    </div>
+  </div>
+  
 
   
   <!-- Order Lookup Section -->
@@ -269,6 +286,7 @@
   <script>
     // Configuration - Replace with your NEW Web App URL from deployment
     // IMPORTANT: Use the Web App URL, not the script editor URL
+    // Get this from Deploy → New Deployment → Web App URL
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbygZEBgBwMeWUhWDJsWofTAAgKNBWSzlsuvcYrikTulqiOzFLkmZU1OIgphwct5_YSuBQ/exec';
     
     let startData;
@@ -316,37 +334,108 @@
       document.getElementById('timerDisplay').classList.add('hidden');
     }
 
-    // Test connection functionality
+    // Test connection functionality with detailed diagnostics
     async function testConnection() {
       const testBtn = document.getElementById('testBtn');
+      const statusDiv = document.getElementById('connectionStatus');
+      const statusText = document.getElementById('connectionStatusText');
+      
       testBtn.disabled = true;
       testBtn.textContent = 'Testing...';
+      statusDiv.classList.remove('hidden');
+      statusText.textContent = 'Testing...';
       
       try {
         showResult('Testing connection...', 'status-monitoring');
-        showDebugInfo('Testing connection to Google Apps Script...');
+        showDebugInfo(`Testing URL: ${GOOGLE_SCRIPT_URL}`);
         
+        // Test with GET request first
+        console.log('Testing GET request...');
         const response = await fetch(GOOGLE_SCRIPT_URL, {
           method: 'GET',
-          mode: 'cors'
+          mode: 'cors',
+          cache: 'no-cache'
         });
         
-        showDebugInfo(`Response status: ${response.status}, OK: ${response.ok}`);
+        console.log('Response received:', {
+          status: response.status,
+          ok: response.ok,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries())
+        });
         
         if (response.ok) {
           const text = await response.text();
+          console.log('Response text:', text);
+          
+          statusText.textContent = '✅ Connected';
+          statusText.style.color = '#059669';
           showResult('✅ Connection successful!', 'status-refundable');
-          showDebugInfo(`Response: ${text.substring(0, 100)}...`);
+          showDebugInfo(`Response: ${text}`);
+          
+          // Now test POST request
+          await testPostRequest();
+          
         } else {
-          throw new Error(`HTTP ${response.status}`);
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
+        
       } catch (error) {
         console.error('Connection test failed:', error);
-        showResult(`❌ Connection failed: ${error.message}`, 'status-error');
-        showDebugInfo(`Connection error: ${error.message}`);
+        statusText.textContent = '❌ Failed';
+        statusText.style.color = '#dc2626';
+        
+        // Detailed error analysis
+        if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+          showResult('❌ CORS/Network Error - Check deployment', 'status-error');
+          showDebugInfo('Possible causes: 1) Wrong URL 2) Not deployed as Web App 3) Access not set to "Anyone" 4) Network blocking');
+        } else if (error.message.includes('404')) {
+          showResult('❌ Script Not Found (404)', 'status-error');
+          showDebugInfo('The Web App URL is incorrect or deployment failed');
+        } else if (error.message.includes('403')) {
+          showResult('❌ Access Denied (403)', 'status-error');
+          showDebugInfo('Deployment access must be set to "Anyone"');
+        } else {
+          showResult(`❌ Error: ${error.message}`, 'status-error');
+          showDebugInfo(`Unexpected error: ${error.message}`);
+        }
       } finally {
         testBtn.disabled = false;
         testBtn.textContent = 'Test Connection';
+      }
+    }
+
+    // Test POST request specifically
+    async function testPostRequest() {
+      try {
+        showDebugInfo('Testing POST request...');
+        
+        const testData = {
+          action: 'test',
+          timestamp: new Date().toISOString()
+        };
+        
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(testData),
+          mode: 'cors',
+          cache: 'no-cache'
+        });
+        
+        console.log('POST response:', response.status, response.ok);
+        
+        if (response.ok) {
+          const result = await response.text();
+          showDebugInfo(`POST test successful: ${result}`);
+        } else {
+          showDebugInfo(`POST test failed: HTTP ${response.status}`);
+        }
+        
+      } catch (error) {
+        showDebugInfo(`POST test error: ${error.message}`);
       }
     }
 
@@ -382,7 +471,9 @@
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(requestData),
-          mode: 'cors'
+          mode: 'cors',
+          cache: 'no-cache',
+          credentials: 'omit'
         });
         
         showDebugInfo(`Response status: ${response.status}, OK: ${response.ok}`);
