@@ -187,6 +187,16 @@
     .hidden {
       display: none;
     }
+
+    .debug-info {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 10px;
+      font-size: 0.85rem;
+      color: #6c757d;
+    }
   </style>
 </head>
 <body>
@@ -238,15 +248,24 @@
   </div>
   
   <p id="result" class="status-waiting">Status: Waiting for action...</p>
+  <div id="debugInfo" class="debug-info hidden"></div>
 
   <script>
-    // Configuration - Replace with your Google Apps Script URL
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpn0LemvY3kXvO6WebCt3WLv9T0gfr2uv12h0GFW7xnvMpurRjSKRg8gjuCvFin8wyrA/exec';
+    // Configuration - Replace with your NEW Web App URL from deployment
+    // IMPORTANT: Use the Web App URL, not the script editor URL
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbygZEBgBwMeWUhWDJsWofTAAgKNBWSzlsuvcYrikTulqiOzFLkmZU1OIgphwct5_YSuBQ/exec';
     
     let startData;
     let currentOrderData;
 
-    // Order lookup functionality
+    function showDebugInfo(info) {
+      const debugDiv = document.getElementById('debugInfo');
+      debugDiv.innerHTML = `<strong>Debug:</strong> ${info}`;
+      debugDiv.classList.remove('hidden');
+      console.log('Debug:', info);
+    }
+
+    // Order lookup functionality with better error handling
     async function lookupOrder() {
       const orderId = document.getElementById('orderIdInput').value.trim();
       const lookupBtn = document.getElementById('lookupBtn');
@@ -263,32 +282,37 @@
       showResult('Looking up order...', 'status-monitoring');
       
       try {
-        console.log('Making request to:', GOOGLE_SCRIPT_URL);
-        console.log('Request data:', { action: 'getOrder', orderId: orderId });
+        showDebugInfo(`Sending request to: ${GOOGLE_SCRIPT_URL}`);
+        
+        const requestData = {
+          action: 'getOrder',
+          orderId: orderId
+        };
+        
+        console.log('Request payload:', requestData);
         
         const response = await fetch(GOOGLE_SCRIPT_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            action: 'getOrder',
-            orderId: orderId
-          }),
+          body: JSON.stringify(requestData),
           mode: 'cors'
         });
         
-        console.log('Response status:', response.status);
-        console.log('Response headers:', [...response.headers.entries()]);
+        showDebugInfo(`Response status: ${response.status}, OK: ${response.ok}`);
         
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          const errorText = await response.text();
+          console.error('Response error:', errorText);
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
         
         const result = await response.json();
         console.log('Response data:', result);
+        showDebugInfo(`Response success: ${result.success}`);
         
-        if (result.success) {
+        if (result.success && result.data) {
           currentOrderData = result.data;
           displayOrderInfo(result.data);
           showResult(`Order found: ${result.data.orderId}`, 'status-refundable');
@@ -297,9 +321,12 @@
           if (result.data.rfidUid) {
             document.getElementById('rfid').value = result.data.rfidUid;
           }
+          
+          document.getElementById('debugInfo').classList.add('hidden');
         } else {
           orderInfo.classList.add('hidden');
-          showResult(`Error: ${result.error}`, 'status-error');
+          showResult(`Error: ${result.error || 'Unknown error'}`, 'status-error');
+          showDebugInfo(`API Error: ${result.error}`);
         }
       } catch (error) {
         console.error('Lookup error:', error);
@@ -307,11 +334,17 @@
         
         // More specific error messages
         if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-          showResult('CORS Error: Please check Google Apps Script deployment settings', 'status-error');
-        } else if (error.message.includes('HTTP error')) {
-          showResult(`Server Error: ${error.message}`, 'status-error');
+          showResult('Network Error: Cannot connect to server', 'status-error');
+          showDebugInfo('CORS or network issue - check deployment settings');
+        } else if (error.message.includes('HTTP 404')) {
+          showResult('Script Not Found: Check deployment URL', 'status-error');
+          showDebugInfo('404 Error - verify Web App URL is correct');
+        } else if (error.message.includes('HTTP 403')) {
+          showResult('Access Denied: Check script permissions', 'status-error');
+          showDebugInfo('403 Error - verify "Anyone" access in deployment');
         } else {
-          showResult('Error connecting to server. Please try again.', 'status-error');
+          showResult(`Error: ${error.message}`, 'status-error');
+          showDebugInfo(`Unexpected error: ${error.message}`);
         }
       } finally {
         lookupBtn.disabled = false;
@@ -329,110 +362,13 @@
       document.getElementById('orderInfo').classList.remove('hidden');
     }
     
-    // ThingSpeak functionality
-    async function fetchThingSpeak() {
+    // Test connection button functionality
+    async function testConnection() {
       try {
-        const res = await fetch('https://api.thingspeak.com/channels/2994468/feeds.json?api_key=ORZJ88EUT7HLBIQC&results=1');
-        const data = await res.json();
-        return data.feeds[0];
-      } catch (error) {
-        console.error('ThingSpeak fetch error:', error);
-        throw error;
-      }
-    }
-    
-    async function startPickup() {
-      const rfidValue = document.getElementById('rfid').value.trim();
-      
-      if (!rfidValue) {
-        showResult('Please enter an RFID code', 'status-error');
-        return;
-      }
-      
-      try {
-        document.getElementById('startBtn').disabled = true;
-        showResult('Starting pickup monitoring...', 'status-monitoring');
+        showResult('Testing connection...', 'status-monitoring');
+        showDebugInfo('Testing GET request...');
         
-        startData = await fetchThingSpeak();
-        
-        document.getElementById('dropBtn').disabled = false;
-        showResult('Pickup Started. Monitoring sensor data...', 'status-monitoring');
-      } catch (error) {
-        console.error('Start pickup error:', error);
-        showResult('Error starting pickup monitoring', 'status-error');
-        document.getElementById('startBtn').disabled = false;
-      }
-    }
-    
-    async function dropPickup() {
-      if (!startData) {
-        showResult('Please start pickup first', 'status-error');
-        return;
-      }
-      
-      try {
-        document.getElementById('dropBtn').disabled = true;
-        showResult('Analyzing pickup data...', 'status-monitoring');
-        
-        const currentData = await fetchThingSpeak();
-        const classification = currentData.field5;
-        const shock = parseFloat(currentData.field3 || 0);
-        const light = parseFloat(currentData.field4 || 0);
-        
-        let finalDecision;
-        let statusClass;
-        
-        if (classification === 'Refundable' && shock < 50 && light < 50) {
-          finalDecision = 'REFUNDABLE';
-          statusClass = 'status-refundable';
-        } else {
-          finalDecision = 'EXCHANGE ONLY';
-          statusClass = 'status-exchange';
-        }
-        
-        showResult(`Final Decision: ${finalDecision}`, statusClass);
-        
-        // Reset buttons
-        document.getElementById('startBtn').disabled = false;
-        document.getElementById('dropBtn').disabled = true;
-        startData = null;
-        
-        // Log sensor data
-        console.log('Sensor Data:', {
-          classification,
-          shock,
-          light,
-          decision: finalDecision
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'GET',
+          mode: 'cors'
         });
-        
-      } catch (error) {
-        console.error('Drop pickup error:', error);
-        showResult('Error analyzing pickup data', 'status-error');
-        document.getElementById('dropBtn').disabled = false;
-      }
-    }
-    
-    function showResult(message, statusClass) {
-      const resultElement = document.getElementById('result');
-      resultElement.textContent = message;
-      resultElement.className = statusClass;
-    }
-    
-    // Allow Enter key for order lookup
-    document.getElementById('orderIdInput').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        lookupOrder();
-      }
-    });
-    
-    // Allow Enter key for RFID input
-    document.getElementById('rfid').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        if (!document.getElementById('startBtn').disabled) {
-          startPickup();
-        }
-      }
-    });
-  </script>
-</body>
-</html>
