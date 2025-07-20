@@ -241,7 +241,7 @@
 
   <script>
     // Configuration - Replace with your Google Apps Script URL
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxkhNu-p3OZ9baG8EWr006dlRQnJiPJ4xoS4aT8-bhFdJxo1sdpUJRMg-63Oiw1V4MFwg/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
     
     let startData;
     let currentOrderData;
@@ -263,6 +263,9 @@
       showResult('Looking up order...', 'status-monitoring');
       
       try {
+        console.log('Making request to:', GOOGLE_SCRIPT_URL);
+        console.log('Request data:', { action: 'getOrder', orderId: orderId });
+        
         const response = await fetch(GOOGLE_SCRIPT_URL, {
           method: 'POST',
           headers: {
@@ -271,10 +274,19 @@
           body: JSON.stringify({
             action: 'getOrder',
             orderId: orderId
-          })
+          }),
+          mode: 'cors'
         });
         
+        console.log('Response status:', response.status);
+        console.log('Response headers:', [...response.headers.entries()]);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const result = await response.json();
+        console.log('Response data:', result);
         
         if (result.success) {
           currentOrderData = result.data;
@@ -292,7 +304,15 @@
       } catch (error) {
         console.error('Lookup error:', error);
         orderInfo.classList.add('hidden');
-        showResult('Error connecting to server. Please try again.', 'status-error');
+        
+        // More specific error messages
+        if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+          showResult('CORS Error: Please check Google Apps Script deployment settings', 'status-error');
+        } else if (error.message.includes('HTTP error')) {
+          showResult(`Server Error: ${error.message}`, 'status-error');
+        } else {
+          showResult('Error connecting to server. Please try again.', 'status-error');
+        }
       } finally {
         lookupBtn.disabled = false;
         lookupBtn.textContent = 'Lookup Order';
