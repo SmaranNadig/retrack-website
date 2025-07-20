@@ -6,7 +6,13 @@
   <title>Pickup Monitor - ReTrack</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+    * { 
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box; 
+      font-family: 'Inter', sans-serif; 
+    }
+    
     body {
       background-color: #f3f4f6;
       color: #1f2937;
@@ -15,82 +21,398 @@
       align-items: center;
       padding: 40px 20px;
     }
+    
     h1 {
       font-size: 2.2rem;
       font-weight: 600;
       color: #2563eb;
       margin-bottom: 10px;
     }
-    .rfid-box {
-      margin: 20px 0;
+    
+    .section {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      margin: 15px 0;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      max-width: 500px;
+      width: 100%;
+    }
+    
+    .section h2 {
+      font-size: 1.4rem;
+      margin-bottom: 20px;
+      color: #374151;
+      border-bottom: 2px solid #e5e7eb;
+      padding-bottom: 8px;
+    }
+    
+    .form-group {
       display: flex;
       gap: 10px;
       flex-direction: column;
-      max-width: 400px;
-      width: 100%;
+      margin-bottom: 15px;
     }
+    
+    .form-row {
+      display: flex;
+      gap: 10px;
+    }
+    
     input {
       padding: 12px;
       font-size: 1rem;
       border: 1px solid #d1d5db;
       border-radius: 8px;
+      flex: 1;
     }
+    
+    input:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    
     button {
       background: transparent;
       border: 2px solid #2563eb;
       color: #2563eb;
-      padding: 12px;
+      padding: 12px 16px;
       border-radius: 8px;
       font-size: 1rem;
       cursor: pointer;
       transition: all 0.3s ease;
+      font-weight: 500;
     }
+    
     button:hover {
       background-color: #2563eb;
       color: white;
     }
+    
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .success-btn {
+      border-color: #059669;
+      color: #059669;
+    }
+    
+    .success-btn:hover {
+      background-color: #059669;
+      color: white;
+    }
+    
+    .danger-btn {
+      border-color: #dc2626;
+      color: #dc2626;
+    }
+    
+    .danger-btn:hover {
+      background-color: #dc2626;
+      color: white;
+    }
+    
+    .order-info {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    
+    .order-info h3 {
+      color: #1e293b;
+      margin-bottom: 10px;
+      font-size: 1.1rem;
+    }
+    
+    .order-detail {
+      display: flex;
+      justify-content: space-between;
+      margin: 5px 0;
+      padding: 2px 0;
+    }
+    
+    .order-detail strong {
+      color: #475569;
+      font-weight: 600;
+    }
+    
     #result {
-      margin-top: 30px;
-      font-size: 1.2rem;
+      margin-top: 20px;
+      font-size: 1.1rem;
       font-weight: 500;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .status-waiting {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fbbf24;
+    }
+    
+    .status-monitoring {
+      background: #dbeafe;
+      color: #1e40af;
+      border: 1px solid #3b82f6;
+    }
+    
+    .status-refundable {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #22c55e;
+    }
+    
+    .status-exchange {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #ef4444;
+    }
+    
+    .status-error {
+      background: #fecaca;
+      color: #b91c1c;
+      border: 1px solid #f87171;
+    }
+    
+    .loading {
+      opacity: 0.6;
+    }
+    
+    .hidden {
+      display: none;
     }
   </style>
 </head>
 <body>
   <h1>Pickup Dashboard</h1>
-  <div class="rfid-box">
-    <input type="text" id="rfid" placeholder="Enter RFID Code" />
-    <button onclick="startPickup()">Start Pickup</button>
-    <button onclick="dropPickup()">Drop Pickup</button>
+  
+  <!-- Order Lookup Section -->
+  <div class="section">
+    <h2>📋 Order Lookup</h2>
+    <div class="form-group">
+      <input type="text" id="orderIdInput" placeholder="Enter Order ID (e.g., RE1234567890)" />
+      <button onclick="lookupOrder()" id="lookupBtn">Lookup Order</button>
+    </div>
+    
+    <div id="orderInfo" class="order-info hidden">
+      <h3>Order Details</h3>
+      <div class="order-detail">
+        <span><strong>Order ID:</strong></span>
+        <span id="orderIdDisplay">-</span>
+      </div>
+      <div class="order-detail">
+        <span><strong>Owner:</strong></span>
+        <span id="ownerDisplay">-</span>
+      </div>
+      <div class="order-detail">
+        <span><strong>Purchase Date:</strong></span>
+        <span id="purchaseDateDisplay">-</span>
+      </div>
+      <div class="order-detail">
+        <span><strong>RFID:</strong></span>
+        <span id="rfidDisplay">-</span>
+      </div>
+      <div class="order-detail">
+        <span><strong>Status:</strong></span>
+        <span id="statusDisplay">-</span>
+      </div>
+    </div>
   </div>
-  <p id="result">Status: Waiting...</p>
+  
+  <!-- Pickup Monitoring Section -->
+  <div class="section">
+    <h2>📦 Pickup Monitoring</h2>
+    <div class="form-group">
+      <input type="text" id="rfid" placeholder="Enter RFID Code" />
+      <div class="form-row">
+        <button onclick="startPickup()" class="success-btn" id="startBtn">Start Pickup</button>
+        <button onclick="dropPickup()" class="danger-btn" id="dropBtn" disabled>Drop Pickup</button>
+      </div>
+    </div>
+  </div>
+  
+  <p id="result" class="status-waiting">Status: Waiting for action...</p>
 
   <script>
+    // Configuration - Replace with your Google Apps Script URL
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+    
     let startData;
+    let currentOrderData;
 
-    async function fetchThingSpeak() {
-      const res = await fetch('https://api.thingspeak.com/channels/2994468/feeds.json?api_key=ORZJ88EUT7HLBIQC&results=1');
-      const data = await res.json();
-      return data.feeds[0];
-    }
-
-    async function startPickup() {
-      startData = await fetchThingSpeak();
-      document.getElementById('result').innerText = 'Pickup Started. Monitoring...';
-    }
-
-    async function dropPickup() {
-      const currentData = await fetchThingSpeak();
-      const classification = currentData.field5;
-      const shock = parseFloat(currentData.field3 || 0);
-      const light = parseFloat(currentData.field4 || 0);
-
-      if (classification === 'Refundable' && shock < 50 && light < 50) {
-        document.getElementById('result').innerText = 'Final Decision: REFUNDABLE';
-      } else {
-        document.getElementById('result').innerText = 'Final Decision: EXCHANGE';
+    // Order lookup functionality
+    async function lookupOrder() {
+      const orderId = document.getElementById('orderIdInput').value.trim();
+      const lookupBtn = document.getElementById('lookupBtn');
+      const orderInfo = document.getElementById('orderInfo');
+      
+      if (!orderId) {
+        showResult('Please enter an Order ID', 'status-error');
+        return;
+      }
+      
+      // Show loading state
+      lookupBtn.disabled = true;
+      lookupBtn.textContent = 'Looking up...';
+      showResult('Looking up order...', 'status-monitoring');
+      
+      try {
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'getOrder',
+            orderId: orderId
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          currentOrderData = result.data;
+          displayOrderInfo(result.data);
+          showResult(`Order found: ${result.data.orderId}`, 'status-refundable');
+          
+          // Auto-populate RFID field if available
+          if (result.data.rfidUid) {
+            document.getElementById('rfid').value = result.data.rfidUid;
+          }
+        } else {
+          orderInfo.classList.add('hidden');
+          showResult(`Error: ${result.error}`, 'status-error');
+        }
+      } catch (error) {
+        console.error('Lookup error:', error);
+        orderInfo.classList.add('hidden');
+        showResult('Error connecting to server. Please try again.', 'status-error');
+      } finally {
+        lookupBtn.disabled = false;
+        lookupBtn.textContent = 'Lookup Order';
       }
     }
+    
+    function displayOrderInfo(data) {
+      document.getElementById('orderIdDisplay').textContent = data.orderId || 'N/A';
+      document.getElementById('ownerDisplay').textContent = data.ownerName || 'N/A';
+      document.getElementById('purchaseDateDisplay').textContent = data.purchaseDate || 'N/A';
+      document.getElementById('rfidDisplay').textContent = data.rfidUid || 'N/A';
+      document.getElementById('statusDisplay').textContent = data.status || 'N/A';
+      
+      document.getElementById('orderInfo').classList.remove('hidden');
+    }
+    
+    // ThingSpeak functionality
+    async function fetchThingSpeak() {
+      try {
+        const res = await fetch('https://api.thingspeak.com/channels/2994468/feeds.json?api_key=ORZJ88EUT7HLBIQC&results=1');
+        const data = await res.json();
+        return data.feeds[0];
+      } catch (error) {
+        console.error('ThingSpeak fetch error:', error);
+        throw error;
+      }
+    }
+    
+    async function startPickup() {
+      const rfidValue = document.getElementById('rfid').value.trim();
+      
+      if (!rfidValue) {
+        showResult('Please enter an RFID code', 'status-error');
+        return;
+      }
+      
+      try {
+        document.getElementById('startBtn').disabled = true;
+        showResult('Starting pickup monitoring...', 'status-monitoring');
+        
+        startData = await fetchThingSpeak();
+        
+        document.getElementById('dropBtn').disabled = false;
+        showResult('Pickup Started. Monitoring sensor data...', 'status-monitoring');
+      } catch (error) {
+        console.error('Start pickup error:', error);
+        showResult('Error starting pickup monitoring', 'status-error');
+        document.getElementById('startBtn').disabled = false;
+      }
+    }
+    
+    async function dropPickup() {
+      if (!startData) {
+        showResult('Please start pickup first', 'status-error');
+        return;
+      }
+      
+      try {
+        document.getElementById('dropBtn').disabled = true;
+        showResult('Analyzing pickup data...', 'status-monitoring');
+        
+        const currentData = await fetchThingSpeak();
+        const classification = currentData.field5;
+        const shock = parseFloat(currentData.field3 || 0);
+        const light = parseFloat(currentData.field4 || 0);
+        
+        let finalDecision;
+        let statusClass;
+        
+        if (classification === 'Refundable' && shock < 50 && light < 50) {
+          finalDecision = 'REFUNDABLE';
+          statusClass = 'status-refundable';
+        } else {
+          finalDecision = 'EXCHANGE ONLY';
+          statusClass = 'status-exchange';
+        }
+        
+        showResult(`Final Decision: ${finalDecision}`, statusClass);
+        
+        // Reset buttons
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('dropBtn').disabled = true;
+        startData = null;
+        
+        // Log sensor data
+        console.log('Sensor Data:', {
+          classification,
+          shock,
+          light,
+          decision: finalDecision
+        });
+        
+      } catch (error) {
+        console.error('Drop pickup error:', error);
+        showResult('Error analyzing pickup data', 'status-error');
+        document.getElementById('dropBtn').disabled = false;
+      }
+    }
+    
+    function showResult(message, statusClass) {
+      const resultElement = document.getElementById('result');
+      resultElement.textContent = message;
+      resultElement.className = statusClass;
+    }
+    
+    // Allow Enter key for order lookup
+    document.getElementById('orderIdInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        lookupOrder();
+      }
+    });
+    
+    // Allow Enter key for RFID input
+    document.getElementById('rfid').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        if (!document.getElementById('startBtn').disabled) {
+          startPickup();
+        }
+      }
+    });
   </script>
 </body>
 </html>
