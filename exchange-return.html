@@ -7,123 +7,365 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+    :root {
+      --primary-amber: #f59e0b;
+      --dark-amber: #d97706;
+      --darker-amber: #b45309;
+      --cream-light: #fefce8;
+      --cream-medium: #fef3c7;
+      --cream-dark: #fde68a;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --success-green: #22c55e;
+      --warning-amber: #f59e0b;
+      --proceed-green: #10b981;
+      --proceed-dark: #059669;
+    }
+    
+    * { 
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box; 
+      font-family: 'Inter', sans-serif; 
+    }
+    
     body {
-      background-color: #f3f4f6;
-      color: #1f2937;
+      background: linear-gradient(135deg, var(--cream-light) 0%, var(--cream-medium) 100%);
+      color: var(--text-primary);
       display: flex;
       flex-direction: column;
       align-items: center;
       padding: 40px 20px;
+      min-height: 100vh;
     }
+    
     h1 {
       font-size: 2.2rem;
       font-weight: 600;
-      color: #2563eb;
+      color: var(--darker-amber);
       margin-bottom: 10px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
+    
     p.subtitle {
       font-size: 1rem;
       margin-bottom: 25px;
-      color: #4b5563;
+      color: var(--text-secondary);
     }
+    
     .container {
       width: 100%;
       max-width: 400px;
       display: flex;
       flex-direction: column;
       gap: 15px;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
     }
+    
     input[type="file"], input[type="text"] {
-      padding: 12px;
+      padding: 12px 16px;
       font-size: 1rem;
-      border: 1px solid #d1d5db;
+      border: 2px solid var(--cream-dark);
       border-radius: 8px;
       width: 100%;
-    }
-    button {
-      background: transparent;
-      border: 2px solid #2563eb;
-      color: #2563eb;
-      padding: 12px;
-      border-radius: 8px;
-      font-size: 1rem;
-      cursor: pointer;
+      background: var(--cream-light);
+      color: var(--text-primary);
       transition: all 0.3s ease;
     }
-    button:hover {
-      background-color: #2563eb;
-      color: white;
+    
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--primary-amber);
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
     }
+    
+    button {
+      background: linear-gradient(135deg, var(--primary-amber) 0%, var(--dark-amber) 100%);
+      border: none;
+      color: white;
+      padding: 14px 20px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+    
+    button:hover::before {
+      left: 100%;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+      background: linear-gradient(135deg, var(--dark-amber) 0%, var(--darker-amber) 100%);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    #proceedBtn {
+      background: linear-gradient(135deg, var(--proceed-green) 0%, var(--proceed-dark) 100%);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      display: none;
+      margin-top: 20px;
+    }
+    
+    #proceedBtn:hover {
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+      background: linear-gradient(135deg, var(--proceed-dark) 0%, #047857 100%);
+    }
+    
     #preview {
       margin-top: 20px;
       max-width: 300px;
-      border-radius: 8px;
+      border-radius: 12px;
       display: none;
-      border: 2px solid #ccc;
+      border: 3px solid var(--primary-amber);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
     }
+    
     #status {
       margin-top: 15px;
       font-size: 0.95rem;
-      color: #6b7280;
+      color: var(--text-secondary);
       text-align: center;
+      padding: 12px 20px;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 8px;
+      border-left: 4px solid var(--primary-amber);
+      backdrop-filter: blur(5px);
+    }
+    
+    #status.success {
+      color: var(--success-green);
+      border-left-color: var(--success-green);
+    }
+    
+    #status.warning {
+      color: var(--warning-amber);
+      border-left-color: var(--warning-amber);
+    }
+    
+    #result {
+      margin-top: 20px;
+      padding: 20px;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-align: center;
+      display: none;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+    
+    #result.refund {
+      background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+      border: 2px solid var(--success-green);
+      color: #15803d;
+    }
+    
+    #result.exchange {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border: 2px solid var(--warning-amber);
+      color: #92400e;
+    }
+    
+    /* Responsive design */
+    @media (max-width: 480px) {
+      .container {
+        padding: 20px;
+        margin: 0 10px;
+      }
+      
+      h1 {
+        font-size: 1.8rem;
+      }
     }
   </style>
 </head>
 <body>
   <h1>Product Exchange</h1>
   <p class="subtitle">Generate unique code and classify product for exchange</p>
-
   <div class="container">
-    <button onclick="generateRFID()">Generate RFID Code</button>
-    <input type="text" id="rfidCode" placeholder="RFID Code" readonly>
-
     <input type="file" id="imageInput" accept="image/*" style="display: none;">
-    <button onclick="document.getElementById('imageInput').click()">Upload Product Image</button>
-    <button onclick="classify()">Classify for Exchange</button>
+    <button onclick="document.getElementById('imageInput').click()">📁 Upload from Gallery</button>
+    <button onclick="classify()">🔍 Classify Image</button>
+    <button onclick="startCamera()">📸 Use Camera</button>
+    <video id="camera" autoplay playsinline style="display: none; width: 100%; border-radius: 12px; border: 3px solid var(--primary-amber); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); margin-top: 15px;"></video>
+    <button onclick="captureFromCamera()" id="captureBtn" style="display:none;">📷 Capture Photo</button>
+    <canvas id="canvas" style="display: none;"></canvas>
   </div>
-
   <img id="preview" alt="Image Preview">
-
+  <div id="result"></div>
   <p id="status">Status: Waiting...</p>
+  <button id="proceedBtn" onclick="proceedToOrderDetails()">Proceed</button>
 
   <script>
     let model;
+    let videoStream;
+
     async function loadModel() {
       const modelURL = 'https://raw.githubusercontent.com/SmaranNadig/retrack-website/main/model/model.json';
-      model = await tf.loadLayersModel(modelURL);
-      document.getElementById('status').innerText = 'Status: Model loaded ✅';
+      try {
+        model = await tf.loadLayersModel(modelURL);
+        const statusEl = document.getElementById('status');
+        statusEl.innerText = 'Status: Model loaded ✅';
+        statusEl.className = 'success';
+      } catch (error) {
+        const statusEl = document.getElementById('status');
+        statusEl.innerText = 'Status: Error loading model ❌';
+        statusEl.className = 'warning';
+      }
     }
     loadModel();
-
-    function generateRFID() {
-      const code = 'RFID-' + Math.random().toString(36).substr(2, 8).toUpperCase();
-      document.getElementById('rfidCode').value = code;
-    }
-
+    
     async function classify() {
       const file = document.getElementById('imageInput').files[0];
       if (!file) {
         alert('Please upload an image');
         return;
       }
-
+      
+      const statusEl = document.getElementById('status');
+      statusEl.innerText = 'Status: Processing image...';
+      statusEl.className = 'warning';
+      
       const img = document.getElementById('preview');
       img.src = URL.createObjectURL(file);
       img.style.display = 'block';
-
+      
       img.onload = async () => {
-        const tensor = tf.browser.fromPixels(img).resizeBilinear([224, 224]).div(255).expandDims(0);
-        const prediction = await model.predict(tensor).data();
-        const label = prediction[0] > 0.5 ? 'Refundable' : 'Exchange';
-        document.getElementById('status').innerText = `Product classified: ${label}`;
-        sendToThingSpeak(label, 'camera-or-gallery');
+        try {
+          const image = tf.browser.fromPixels(img);
+          const resized = tf.image.resizeBilinear(image, [224, 224]);
+          const normalized = resized.div(255.0);
+          const batched = normalized.expandDims(0);
+
+          const prediction = await model.predict(batched).data();
+          const maxIndex = prediction.indexOf(Math.max(...prediction));
+          const confidence = prediction[maxIndex];
+          
+          const resultEl = document.getElementById('result');
+          resultEl.style.display = 'block';
+          
+          if (maxIndex === 0) { // Broken product
+            resultEl.innerText = '✅ Product Broken, will be refunded';
+            resultEl.className = 'refund';
+            statusEl.innerText = 'Status: Classification complete - Refund eligible ✅';
+            // Hide proceed button for refund cases
+            document.getElementById('proceedBtn').style.display = 'none';
+          } else { // Not broken
+            resultEl.innerText = '🔄 Product eligible for exchange';
+            resultEl.className = 'exchange';
+            statusEl.innerText = 'Status: Classification complete - Exchange eligible ✅';
+            // Show proceed button only for exchange cases
+            document.getElementById('proceedBtn').style.display = 'block';
+          }
+          
+          statusEl.className = 'success';
+          
+        } catch (error) {
+          statusEl.innerText = 'Status: Classification failed ❌';
+          statusEl.className = 'warning';
+        }
       };
     }
 
-    function sendToThingSpeak(result, source) {
-      const apiKey = 'ORZJ88EUT7HLBIQC';
-      fetch(`https://api.thingspeak.com/update?api_key=${apiKey}&field5=${result}&status=${source}`);
+    function startCamera() {
+      const video = document.getElementById('camera');
+      const captureBtn = document.getElementById('captureBtn');
+
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(stream => {
+          video.srcObject = stream;
+          videoStream = stream;
+          video.style.display = 'block';
+          captureBtn.style.display = 'inline-block';
+          document.getElementById('status').innerText = 'Status: Camera active 📹';
+          document.getElementById('status').className = 'success';
+        })
+        .catch(error => {
+          document.getElementById('status').innerText = `Status: Camera error - ${error.message} ❌`;
+          document.getElementById('status').className = 'warning';
+          console.error('Camera error:', error);
+        });
+    }
+
+    async function captureFromCamera() {
+      const video = document.getElementById('camera');
+      const canvas = document.getElementById('canvas');
+      const context = canvas.getContext('2d');
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0);
+
+      const preview = document.getElementById('preview');
+      preview.src = canvas.toDataURL('image/jpeg');
+      preview.style.display = 'block';
+
+      const imgTensor = tf.browser.fromPixels(canvas);
+      const resized = tf.image.resizeBilinear(imgTensor, [224, 224]);
+      const normalized = resized.div(255.0);
+      const batched = normalized.expandDims(0);
+
+      document.getElementById('status').innerText = 'Status: Classifying camera image... 🔄';
+      document.getElementById('status').className = 'warning';
+
+      try {
+        const prediction = await model.predict(batched).data();
+        const maxIndex = prediction.indexOf(Math.max(...prediction));
+        const confidence = prediction[maxIndex];
+
+        const resultEl = document.getElementById('result');
+        resultEl.style.display = 'block';
+
+        if (maxIndex === 0) { // Broken product
+          resultEl.innerText = '✅ Product Broken, will be refunded';
+          resultEl.className = 'refund';
+          document.getElementById('status').innerText = 'Status: Classification complete - Refund eligible ✅';
+          // Hide proceed button for refund cases
+          document.getElementById('proceedBtn').style.display = 'none';
+        } else { // Not broken
+          resultEl.innerText = '🔄 Product eligible for exchange';
+          resultEl.className = 'exchange';
+          document.getElementById('status').innerText = 'Status: Classification complete - Exchange eligible ✅';
+          // Show proceed button only for exchange cases
+          document.getElementById('proceedBtn').style.display = 'block';
+        }
+
+        document.getElementById('status').className = 'success';
+
+      } catch (error) {
+        document.getElementById('status').innerText = `Status: Classification error - ${error.message} ❌`;
+        document.getElementById('status').className = 'warning';
+        console.error('Camera classification error:', error);
+      }
+    }
+    
+    function proceedToOrderDetails() {
+      // Navigate to orderdet.html
+      window.location.href = 'orderdet.html';
     }
   </script>
 </body>
