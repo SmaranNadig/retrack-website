@@ -272,6 +272,8 @@
       line-height: 1.5;
     }
     
+
+    
     @media (max-width: 600px) {
       body {
         padding: 20px 10px;
@@ -324,6 +326,8 @@
     <h1>ReTrack</h1>
     <p class="subtitle">Enter your details to process the refund for your broken product</p>
     
+
+    
     <form id="orderForm">
       <div class="form-group">
         <label for="name">Full Name <span class="required">*</span></label>
@@ -370,7 +374,7 @@
     <div class="success-message" id="successMessage">
       <div>✅ Refund request submitted successfully!</div>
       <div class="order-id" id="orderIdDisplay"></div>
-      <div class="info-text">You will receive a confirmation email shortly. Please keep this Order ID for your records.</div>
+      <div class="info-text"> Please keep this Order ID for your records.</div>
     </div>
     
     <div class="error-message" id="errorMessage">
@@ -421,6 +425,8 @@
       return true;
     }
     
+
+    
     // Add event listeners for real-time validation
     document.querySelectorAll('input, select').forEach(field => {
       field.addEventListener('blur', () => validateField(field));
@@ -431,18 +437,16 @@
       });
     });
     
-    // Generate secure order ID
+    // Generate unique order ID with RE prefix
     function generateOrderId() {
-      const timestamp = Date.now().toString(36);
-      const random = Math.random().toString(36).substr(2, 5);
-      return `ORD-${timestamp}-${random}`.toUpperCase();
+      return "RE" + Date.now();
     }
     
     // Form submission handler
     document.getElementById("orderForm").addEventListener("submit", async function(e) {
       e.preventDefault();
       
-      // Validate all fields
+      // Validate all form fields
       const fields = this.querySelectorAll('input[required], select[required]');
       let isValid = true;
       
@@ -469,49 +473,44 @@
       
       try {
         const formData = new FormData(this);
-        const orderID = generateOrderId();
+        const orderId = generateOrderId();
         
+        // Add your Google Apps Script Web App URL here
+        const sheetURL = "https://script.google.com/macros/s/AKfycbzpn0LemvY3kXvO6WebCt3WLv9T0gfr2uv12h0GFW7xnvMpurRjSKRg8gjuCvFin8wyrA/exec"; // Replace with your actual URL
+        
+        // Prepare data in the format expected by your Google Apps Script
         const data = {
-          timestamp: new Date().toISOString(),
-          orderID: orderID,
-          name: formData.get("name").trim(),
-          address: formData.get("address").trim(),
+          orderId: orderId,
+          ownerName: formData.get("name").trim(),
           purchaseDate: formData.get("date"),
-          rfidUID: formData.get("rfid"),
-          status: "Pending Review",
-          requestType: "Refund - Broken Product"
+          address: formData.get("address").trim(),
+          rfid: formData.get("rfid"),
+          refundable: "Yes"
         };
         
-        // Simulate API call (replace with actual endpoint)
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log('Sending data:', data);
         
-        // In a real implementation, replace this with your actual API endpoint
-        const sheetURL = "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec";
-        
-        /* 
+        // Submit to Google Apps Script (using no-cors mode to avoid CORS issues)
         const response = await fetch(sheetURL, {
           method: "POST",
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data)
+          mode: "no-cors",
+          body: JSON.stringify(data),
+          headers: { 
+            "Content-Type": "application/json"
+          }
         });
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        */
+        // Note: With no-cors mode, we can't read the response, but the request will go through
+        // We'll assume success if no error is thrown
+        console.log('Request sent successfully');
         
         // Show success message
         loading.style.display = 'none';
         successMessage.style.display = 'block';
-        document.getElementById('orderIdDisplay').textContent = `Order ID: ${orderID}`;
+        document.getElementById('orderIdDisplay').textContent = `Order ID: ${orderId}`;
         
         // Reset form
         this.reset();
-        
-        // Store order ID for reference (Note: localStorage not available in Claude artifacts)
-        // localStorage.setItem('lastOrderId', orderID);
         
       } catch (error) {
         console.error('Submission error:', error);
@@ -520,7 +519,7 @@
         loading.style.display = 'none';
         errorMessage.style.display = 'block';
         document.getElementById('errorDetails').textContent = 
-          `Error: ${error.message}. Please try again or contact support.`;
+          `Error: ${error.message}. Please check your connection and try again.`;
       } finally {
         submitBtn.disabled = false;
       }
