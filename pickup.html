@@ -115,6 +115,16 @@
       color: white;
     }
     
+    .warning-btn {
+      border-color: #d97706;
+      color: #d97706;
+    }
+    
+    .warning-btn:hover {
+      background-color: #d97706;
+      color: white;
+    }
+    
     .order-info {
       background: #f8fafc;
       border: 1px solid #e2e8f0;
@@ -209,12 +219,32 @@
       color: #2563eb;
       margin-top: 10px;
     }
+
+    .config-section {
+      background: #fff7ed;
+      border: 1px solid #fb923c;
+    }
+
+    .config-input {
+      width: 100%;
+      margin-bottom: 10px;
+    }
   </style>
 </head>
 <body>
   <h1>Pickup Dashboard</h1>
   
-
+  <!-- Configuration Section -->
+  <div class="section config-section">
+    <h2>⚙️ Server Configuration</h2>
+    <div class="form-group">
+      <input type="text" id="serverUrlInput" class="config-input" 
+             placeholder="Enter server URL (e.g., https://your-server.com)" 
+             value="https://retrack-website.onrender.com" />
+      <button onclick="updateServerUrl()" class="warning-btn">Update Server URL</button>
+      <button onclick="testConnection()" id="testBtn">Test Connection</button>
+    </div>
+  </div>
   
   <!-- Order Lookup Section -->
   <div class="section">
@@ -263,19 +293,26 @@
     </div>
   </div>
   
-  <p id="result" class="status-waiting">Status: Waiting for action...</p>
+  <p id="result" class="status-waiting">Status: Configure server URL and test connection...</p>
   <div id="debugInfo" class="debug-info hidden"></div>
 
   <script>
-    // Configuration - Replace with your NEW Web App URL from deployment
-    // IMPORTANT: Use the Web App URL, not the script editor URL
-    // Get this from Deploy → New Deployment → Web App URL
-    const GOOGLE_SCRIPT_URL = 'https://retrack-website.onrender.com/proxy';
+    // Configuration
+    let GOOGLE_SCRIPT_URL = 'https://retrack-website.onrender.com';
     
     let startData;
     let currentOrderData;
     let pickupTimer;
     let startTime;
+
+    function updateServerUrl() {
+      const newUrl = document.getElementById('serverUrlInput').value.trim();
+      if (newUrl) {
+        GOOGLE_SCRIPT_URL = newUrl.endsWith('/') ? newUrl.slice(0, -1) : newUrl;
+        showResult(`Server URL updated to: ${GOOGLE_SCRIPT_URL}`, 'status-monitoring');
+        showDebugInfo(`Server URL updated: ${GOOGLE_SCRIPT_URL}`);
+      }
+    }
 
     function showDebugInfo(info) {
       const debugDiv = document.getElementById('debugInfo');
@@ -325,30 +362,97 @@
       
       try {
         showResult('Testing connection...', 'status-monitoring');
-        showDebugInfo('Testing connection to Google Apps Script...');
+        showDebugInfo('Testing connection to server...');
         
-        const response = await fetch(GOOGLE_SCRIPT_URL, {
-          method: 'GET',
-          mode: 'cors'
-        });
+        // Try different endpoints
+        const endpoints = [
+          `${GOOGLE_SCRIPT_URL}/health`,
+          `${GOOGLE_SCRIPT_URL}/`,
+          `${GOOGLE_SCRIPT_URL}/proxy`,
+          `${GOOGLE_SCRIPT_URL}/api/proxy`, 
+          `${GOOGLE_SCRIPT_URL}/lookup`
+        ];
         
-        showDebugInfo(`Response status: ${response.status}, OK: ${response.ok}`);
+        let success = false;
+        let workingEndpoint = null;
         
-        if (response.ok) {
-          const text = await response.text();
-          showResult('✅ Connection successful!', 'status-refundable');
-          showDebugInfo(`Response: ${text.substring(0, 100)}...`);
-        } else {
-          throw new Error(`HTTP ${response.status}`);
+        for (const endpoint of endpoints) {
+          try {
+            showDebugInfo(`Trying endpoint: ${endpoint}`);
+            const response = await fetch(endpoint, {
+              method: 'GET',
+              mode: 'cors'
+            });
+            
+            if (response.ok) {
+              success = true;
+              workingEndpoint = endpoint;
+              break;
+            }
+          } catch (e) {
+            console.log(`Failed ${endpoint}:`, e.message);
+          }
         }
+        
+        if (success) {
+          showResult('✅ Connection successful!', 'status-refundable');
+          showDebugInfo(`Working endpoint found: ${workingEndpoint}`);
+          
+          // Update the script URL to use the working endpoint base
+          const baseUrl = workingEndpoint.replace(/\/(proxy|api\/proxy|health|api\/health|\/)$/, '');
+          GOOGLE_SCRIPT_URL = baseUrl;
+          document.getElementById('serverUrlInput').value = baseUrl;
+          
+        } else {
+          throw new Error('No working endpoints found');
+        }
+        
       } catch (error) {
         console.error('Connection test failed:', error);
         showResult(`❌ Connection failed: ${error.message}`, 'status-error');
-        showDebugInfo(`Connection error: ${error.message}`);
+        showDebugInfo(`Connection error: ${error.message}. Try updating the server URL.`);
       } finally {
         testBtn.disabled = false;
         testBtn.textContent = 'Test Connection';
       }
+    }
+
+    // Enhanced API call function
+    async function apiCall(action, data = {}) {
+      const endpoints = [
+        `${GOOGLE_SCRIPT_URL}/proxy`,
+        `${GOOGLE_SCRIPT_URL}/api/proxy`,
+        `${GOOGLE_SCRIPT_URL}/lookup`
+      ];
+      
+      const payload = { action, ...data };
+      
+      for (const endpoint of endpoints) {
+        try {
+          showDebugInfo(`Trying API call to: ${endpoint}`);
+          
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+            mode: 'cors'
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            showDebugInfo(`API call successful via: ${endpoint}`);
+            return result;
+          } else {
+            console.log(`Failed ${endpoint}: HTTP ${response.status}`);
+          }
+        } catch (error) {
+          console.log(`Error with ${endpoint}:`, error.message);
+        }
+      }
+      
+      throw new Error('All API endpoints failed. Check server configuration.');
     }
 
     // Order lookup functionality with better error handling
@@ -368,35 +472,8 @@
       showResult('Looking up order...', 'status-monitoring');
       
       try {
-        showDebugInfo(`Sending request to: ${GOOGLE_SCRIPT_URL}`);
-        
-        const requestData = {
-          action: 'getOrder',
-          orderId: orderId
-        };
-        
-        console.log('Request payload:', requestData);
-        
-        const response = await fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestData),
-          mode: 'cors'
-        });
-        
-        showDebugInfo(`Response status: ${response.status}, OK: ${response.ok}`);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Response error:', errorText);
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
-        
-        const result = await response.json();
+        const result = await apiCall('getOrder', { orderId });
         console.log('Response data:', result);
-        showDebugInfo(`Response success: ${result.success}`);
         
         if (result.success && result.data) {
           currentOrderData = result.data;
@@ -418,21 +495,8 @@
       } catch (error) {
         console.error('Lookup error:', error);
         orderInfo.classList.add('hidden');
-        
-        // More specific error messages
-        if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-          showResult('Network Error: Cannot connect to server', 'status-error');
-          showDebugInfo('CORS or network issue - check deployment settings');
-        } else if (error.message.includes('HTTP 404')) {
-          showResult('Script Not Found: Check deployment URL', 'status-error');
-          showDebugInfo('404 Error - verify Web App URL is correct');
-        } else if (error.message.includes('HTTP 403')) {
-          showResult('Access Denied: Check script permissions', 'status-error');
-          showDebugInfo('403 Error - verify "Anyone" access in deployment');
-        } else {
-          showResult(`Error: ${error.message}`, 'status-error');
-          showDebugInfo(`Unexpected error: ${error.message}`);
-        }
+        showResult(`Error: ${error.message}`, 'status-error');
+        showDebugInfo(`Lookup error: ${error.message}`);
       } finally {
         lookupBtn.disabled = false;
         lookupBtn.textContent = 'Lookup Order';
@@ -465,29 +529,7 @@
       showResult('Starting pickup monitoring...', 'status-monitoring');
       
       try {
-        const requestData = {
-          action: 'startPickup',
-          rfidUid: rfid
-        };
-        
-        console.log('Start pickup request:', requestData);
-        showDebugInfo('Sending start pickup request...');
-        
-        const response = await fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestData),
-          mode: 'cors'
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
-        
-        const result = await response.json();
+        const result = await apiCall('startPickup', { rfidUid: rfid });
         console.log('Start pickup response:', result);
         
         if (result.success) {
@@ -530,30 +572,10 @@
       showResult('Dropping pickup...', 'status-monitoring');
       
       try {
-        const requestData = {
-          action: 'dropPickup',
+        const result = await apiCall('dropPickup', {
           rfidUid: startData.rfidUid,
           orderId: startData.orderId
-        };
-        
-        console.log('Drop pickup request:', requestData);
-        showDebugInfo('Sending drop pickup request...');
-        
-        const response = await fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestData),
-          mode: 'cors'
         });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
-        
-        const result = await response.json();
         console.log('Drop pickup response:', result);
         
         if (result.success) {
@@ -585,7 +607,7 @@
 
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
-      showResult('System ready. Lookup an order to begin.', 'status-waiting');
+      showResult('Configure server URL and test connection to begin.', 'status-waiting');
       console.log('Pickup Monitor initialized');
       console.log('Script URL:', GOOGLE_SCRIPT_URL);
     });
