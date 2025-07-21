@@ -1,9 +1,4 @@
-// Enter key handler for order input
-    document.getElementById('orderIdInput').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        lookupOrder();
-      }
-    });<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -225,7 +220,7 @@
   <div class="section">
     <h2>📋 Order Lookup</h2>
     <div class="form-group">
-      <input type="text" id="orderIdInput" placeholder="Enter Order ID (e.g., RE1234567890)" />
+      <input type="text" id="orderIdInput" placeholder="Enter Order ID (e.g., REXXXXXXX)" />
       <button onclick="lookupOrder()" id="lookupBtn">Lookup Order</button>
     </div>
     
@@ -275,7 +270,7 @@
     // Configuration - Replace with your NEW Web App URL from deployment
     // IMPORTANT: Use the Web App URL, not the script editor URL
     // Get this from Deploy → New Deployment → Web App URL
-    const GOOGLE_SCRIPT_URL = 'https://retrack-website.onrender.com';
+    const GOOGLE_SCRIPT_URL = 'https://retrack-website.onrender.com/proxy';
     
     let startData;
     let currentOrderData;
