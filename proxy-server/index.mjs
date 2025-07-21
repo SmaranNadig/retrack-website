@@ -5,11 +5,12 @@ import cors from 'cors';
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// CORS configuration
+// CORS configuration - this handles preflight requests automatically
 app.use(cors({
   origin: '*', // Allow all origins for development
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false
 }));
 
 app.use(express.json());
@@ -133,14 +134,6 @@ app.post('/lookup', async (req, res) => {
       detail: err.message 
     });
   }
-});
-
-// Handle preflight OPTIONS requests
-app.options('*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.sendStatus(200);
 });
 
 // Error handling middleware
