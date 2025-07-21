@@ -4,66 +4,228 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Select Return Reason - ReTrack</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --primary-amber: #f59e0b;
+      --dark-amber: #d97706;
+      --darker-amber: #b45309;
+      --cream-light: #fefce8;
+      --cream-medium: #fef3c7;
+      --cream-dark: #fde68a;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --success-green: #22c55e;
+      --warning-amber: #f59e0b;
+    }
+
     * {
-      margin: 0; padding: 0; box-sizing: border-box;
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box;
       font-family: 'Inter', sans-serif;
     }
+
     body {
-      background-color: #f3f4f6;
-      color: #1f2937;
+      background: linear-gradient(135deg, var(--cream-light) 0%, var(--cream-medium) 100%);
+      color: var(--text-primary);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
       padding: 20px;
+      position: relative;
+      overflow-x: hidden;
     }
+
+    /* Decorative background elements */
+    body::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background-image: 
+        radial-gradient(circle at 25% 25%, var(--cream-dark) 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, var(--cream-medium) 0%, transparent 50%);
+      opacity: 0.3;
+      z-index: -1;
+      animation: floatBackground 20s ease-in-out infinite;
+    }
+
+    @keyframes floatBackground {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-20px) rotate(5deg); }
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      border-radius: 24px;
+      padding: 48px 40px;
+      box-shadow: 
+        0 20px 25px -5px rgba(0, 0, 0, 0.1),
+        0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      max-width: 450px;
+      width: 100%;
+      text-align: center;
+      position: relative;
+    }
+
+    .container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary-amber), var(--dark-amber));
+      border-radius: 24px 24px 0 0;
+    }
+
     h1 {
       font-size: 2.5rem;
       font-weight: 600;
-      margin-bottom: 10px;
-      color: #2563eb;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+      position: relative;
     }
+
+    h1::after {
+      content: '';
+      position: absolute;
+      bottom: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary-amber), var(--dark-amber));
+      border-radius: 2px;
+    }
+
     p {
       font-size: 1.1rem;
-      color: #4b5563;
-      margin-bottom: 30px;
-      text-align: center;
+      color: var(--text-secondary);
+      margin-bottom: 36px;
+      line-height: 1.6;
     }
+
     .button-container {
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 16px;
       width: 100%;
-      max-width: 350px;
     }
+
     .btn {
-      background: transparent;
-      border: 2px solid #2563eb;
-      color: #2563eb;
-      padding: 14px 24px;
+      background: linear-gradient(135deg, var(--primary-amber), var(--dark-amber));
+      border: none;
+      color: white;
+      padding: 16px 32px;
       font-size: 1rem;
-      border-radius: 8px;
+      font-weight: 500;
+      border-radius: 12px;
       cursor: pointer;
-      transition: all 0.3s ease;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       text-align: center;
       text-decoration: none;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    .btn:hover::before {
+      left: 100%;
+    }
+
     .btn:hover {
-      background-color: #2563eb;
-      color: white;
+      transform: translateY(-2px);
+      box-shadow: 
+        0 10px 15px -3px rgba(0, 0, 0, 0.1),
+        0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      background: linear-gradient(135deg, var(--dark-amber), var(--darker-amber));
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    /* Icon styling */
+    .btn-icon {
+      margin-right: 8px;
+      font-size: 1.1em;
+    }
+
+    /* Responsive design */
+    @media (max-width: 480px) {
+      .container {
+        padding: 32px 24px;
+        margin: 16px;
+      }
+      
+      h1 {
+        font-size: 2rem;
+      }
+      
+      p {
+        font-size: 1rem;
+      }
+      
+      .btn {
+        padding: 14px 24px;
+        font-size: 0.95rem;
+      }
+    }
+
+    /* Subtle animation for container */
+    .container {
+      animation: slideInUp 0.6s ease-out;
+    }
+
+    @keyframes slideInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
   </style>
 </head>
 <body>
-  <h1>Select Return Reason</h1>
-  <p>Choose the reason why you want to return the product.</p>
-
-  <div class="button-container">
-    <a href="broken-return.html" class="btn">Product is Broken</a>
-    <a href="exchange-return.html" class="btn">Exchange the Product</a>
+  <div class="container">
+    <h1>Select Return Reason</h1>
+    <p>Choose the reason why you want to return the product so we can assist you better.</p>
+    <div class="button-container">
+      <a href="broken-return.html" class="btn">
+        <span class="btn-icon">⚠️</span>
+        Product is Broken
+      </a>
+      <a href="exchange-return.html" class="btn">
+        <span class="btn-icon">🔄</span>
+        Exchange the Product
+      </a>
+      <a href="pickup.html" class="btn">
+        <span class="btn-icon">⚠️</span>
+        Product is Broken
+      </a>
+    </div>
   </div>
 </body>
 </html>
