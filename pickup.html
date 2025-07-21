@@ -115,16 +115,6 @@
       color: white;
     }
     
-    .warning-btn {
-      border-color: #d97706;
-      color: #d97706;
-    }
-    
-    .warning-btn:hover {
-      background-color: #d97706;
-      color: white;
-    }
-    
     .order-info {
       background: #f8fafc;
       border: 1px solid #e2e8f0;
@@ -197,60 +187,16 @@
     .hidden {
       display: none;
     }
-
-    .debug-info {
-      background: #f8f9fa;
-      border: 1px solid #dee2e6;
-      border-radius: 8px;
-      padding: 10px;
-      margin-top: 10px;
-      font-size: 0.85rem;
-      color: #6c757d;
-    }
-
-    .test-section {
-      background: #f0f9ff;
-      border: 1px solid #0ea5e9;
-    }
-
-    .timer-display {
-      font-size: 1.2rem;
-      font-weight: bold;
-      color: #2563eb;
-      margin-top: 10px;
-    }
-
-    .config-section {
-      background: #fff7ed;
-      border: 1px solid #fb923c;
-    }
-
-    .config-input {
-      width: 100%;
-      margin-bottom: 10px;
-    }
   </style>
 </head>
 <body>
   <h1>Pickup Dashboard</h1>
   
-  <!-- Configuration Section -->
-  <div class="section config-section">
-    <h2>⚙️ Server Configuration</h2>
-    <div class="form-group">
-      <input type="text" id="serverUrlInput" class="config-input" 
-             placeholder="Enter server URL (e.g., https://your-server.com)" 
-             value="https://retrack-website.onrender.com" />
-      <button onclick="updateServerUrl()" class="warning-btn">Update Server URL</button>
-      <button onclick="testConnection()" id="testBtn">Test Connection</button>
-    </div>
-  </div>
-  
   <!-- Order Lookup Section -->
   <div class="section">
     <h2>📋 Order Lookup</h2>
     <div class="form-group">
-      <input type="text" id="orderIdInput" placeholder="Enter Order ID (e.g., REXXXXXXX)" />
+      <input type="text" id="orderIdInput" placeholder="Enter Order ID (e.g., RE1234567890)" />
       <button onclick="lookupOrder()" id="lookupBtn">Lookup Order</button>
     </div>
     
@@ -283,179 +229,24 @@
   <div class="section">
     <h2>📦 Pickup Monitoring</h2>
     <div class="form-group">
+      <input type="text" id="rfid" placeholder="Enter RFID Code" />
       <div class="form-row">
         <button onclick="startPickup()" class="success-btn" id="startBtn">Start Pickup</button>
         <button onclick="dropPickup()" class="danger-btn" id="dropBtn" disabled>Drop Pickup</button>
       </div>
     </div>
-    <div id="timerDisplay" class="timer-display hidden">
-      Timer: <span id="timerText">00:00</span>
-    </div>
   </div>
   
-  <p id="result" class="status-waiting">Status: Configure server URL and test connection...</p>
-  <div id="debugInfo" class="debug-info hidden"></div>
+  <p id="result" class="status-waiting">Status: Waiting for action...</p>
 
   <script>
-    // Configuration
-    let GOOGLE_SCRIPT_URL = 'https://retrack-website.onrender.com';
+    // Configuration - Replace with your Google Apps Script URL
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpn0LemvY3kXvO6WebCt3WLv9T0gfr2uv12h0GFW7xnvMpurRjSKRg8gjuCvFin8wyrA/exec';
     
     let startData;
     let currentOrderData;
-    let pickupTimer;
-    let startTime;
 
-    function updateServerUrl() {
-      const newUrl = document.getElementById('serverUrlInput').value.trim();
-      if (newUrl) {
-        GOOGLE_SCRIPT_URL = newUrl.endsWith('/') ? newUrl.slice(0, -1) : newUrl;
-        showResult(`Server URL updated to: ${GOOGLE_SCRIPT_URL}`, 'status-monitoring');
-        showDebugInfo(`Server URL updated: ${GOOGLE_SCRIPT_URL}`);
-      }
-    }
-
-    function showDebugInfo(info) {
-      const debugDiv = document.getElementById('debugInfo');
-      debugDiv.innerHTML = `<strong>Debug:</strong> ${info}`;
-      debugDiv.classList.remove('hidden');
-      console.log('Debug:', info);
-    }
-
-    function showResult(message, statusClass) {
-      const resultDiv = document.getElementById('result');
-      resultDiv.textContent = message;
-      resultDiv.className = statusClass;
-    }
-
-    function updateTimer() {
-      if (!startTime) return;
-      
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      const minutes = Math.floor(elapsed / 60);
-      const seconds = elapsed % 60;
-      
-      document.getElementById('timerText').textContent = 
-        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    }
-
-    function startTimer() {
-      startTime = Date.now();
-      document.getElementById('timerDisplay').classList.remove('hidden');
-      pickupTimer = setInterval(updateTimer, 1000);
-      updateTimer();
-    }
-
-    function stopTimer() {
-      if (pickupTimer) {
-        clearInterval(pickupTimer);
-        pickupTimer = null;
-      }
-      startTime = null;
-      document.getElementById('timerDisplay').classList.add('hidden');
-    }
-
-    // Test connection functionality
-    async function testConnection() {
-      const testBtn = document.getElementById('testBtn');
-      testBtn.disabled = true;
-      testBtn.textContent = 'Testing...';
-      
-      try {
-        showResult('Testing connection...', 'status-monitoring');
-        showDebugInfo('Testing connection to server...');
-        
-        // Try different endpoints
-        const endpoints = [
-          `${GOOGLE_SCRIPT_URL}/health`,
-          `${GOOGLE_SCRIPT_URL}/`,
-          `${GOOGLE_SCRIPT_URL}/proxy`,
-          `${GOOGLE_SCRIPT_URL}/api/proxy`, 
-          `${GOOGLE_SCRIPT_URL}/lookup`
-        ];
-        
-        let success = false;
-        let workingEndpoint = null;
-        
-        for (const endpoint of endpoints) {
-          try {
-            showDebugInfo(`Trying endpoint: ${endpoint}`);
-            const response = await fetch(endpoint, {
-              method: 'GET',
-              mode: 'cors'
-            });
-            
-            if (response.ok) {
-              success = true;
-              workingEndpoint = endpoint;
-              break;
-            }
-          } catch (e) {
-            console.log(`Failed ${endpoint}:`, e.message);
-          }
-        }
-        
-        if (success) {
-          showResult('✅ Connection successful!', 'status-refundable');
-          showDebugInfo(`Working endpoint found: ${workingEndpoint}`);
-          
-          // Update the script URL to use the working endpoint base
-          const baseUrl = workingEndpoint.replace(/\/(proxy|api\/proxy|health|api\/health|\/)$/, '');
-          GOOGLE_SCRIPT_URL = baseUrl;
-          document.getElementById('serverUrlInput').value = baseUrl;
-          
-        } else {
-          throw new Error('No working endpoints found');
-        }
-        
-      } catch (error) {
-        console.error('Connection test failed:', error);
-        showResult(`❌ Connection failed: ${error.message}`, 'status-error');
-        showDebugInfo(`Connection error: ${error.message}. Try updating the server URL.`);
-      } finally {
-        testBtn.disabled = false;
-        testBtn.textContent = 'Test Connection';
-      }
-    }
-
-    // Enhanced API call function
-    async function apiCall(action, data = {}) {
-      const endpoints = [
-        `${GOOGLE_SCRIPT_URL}/proxy`,
-        `${GOOGLE_SCRIPT_URL}/api/proxy`,
-        `${GOOGLE_SCRIPT_URL}/lookup`
-      ];
-      
-      const payload = { action, ...data };
-      
-      for (const endpoint of endpoints) {
-        try {
-          showDebugInfo(`Trying API call to: ${endpoint}`);
-          
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-            mode: 'cors'
-          });
-          
-          if (response.ok) {
-            const result = await response.json();
-            showDebugInfo(`API call successful via: ${endpoint}`);
-            return result;
-          } else {
-            console.log(`Failed ${endpoint}: HTTP ${response.status}`);
-          }
-        } catch (error) {
-          console.log(`Error with ${endpoint}:`, error.message);
-        }
-      }
-      
-      throw new Error('All API endpoints failed. Check server configuration.');
-    }
-
-    // Order lookup functionality with better error handling
+    // Order lookup functionality
     async function lookupOrder() {
       const orderId = document.getElementById('orderIdInput').value.trim();
       const lookupBtn = document.getElementById('lookupBtn');
@@ -472,31 +263,56 @@
       showResult('Looking up order...', 'status-monitoring');
       
       try {
-        const result = await apiCall('getOrder', { orderId });
+        console.log('Making request to:', GOOGLE_SCRIPT_URL);
+        console.log('Request data:', { action: 'getOrder', orderId: orderId });
+        
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'getOrder',
+            orderId: orderId
+          }),
+          mode: 'cors'
+        });
+        
+        console.log('Response status:', response.status);
+        console.log('Response headers:', [...response.headers.entries()]);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
         console.log('Response data:', result);
         
-        if (result.success && result.data) {
+        if (result.success) {
           currentOrderData = result.data;
           displayOrderInfo(result.data);
+          showResult(`Order found: ${result.data.orderId}`, 'status-refundable');
           
           // Auto-populate RFID field if available
           if (result.data.rfidUid) {
-            showResult(`Order found: ${result.data.orderId} - Ready for pickup`, 'status-refundable');
-          } else {
-            showResult(`Order found: ${result.data.orderId} - No RFID available`, 'status-exchange');
+            document.getElementById('rfid').value = result.data.rfidUid;
           }
-          
-          document.getElementById('debugInfo').classList.add('hidden');
         } else {
           orderInfo.classList.add('hidden');
-          showResult(`Error: ${result.error || 'Order not found'}`, 'status-error');
-          showDebugInfo(`API Error: ${result.error}`);
+          showResult(`Error: ${result.error}`, 'status-error');
         }
       } catch (error) {
         console.error('Lookup error:', error);
         orderInfo.classList.add('hidden');
-        showResult(`Error: ${error.message}`, 'status-error');
-        showDebugInfo(`Lookup error: ${error.message}`);
+        
+        // More specific error messages
+        if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+          showResult('CORS Error: Please check Google Apps Script deployment settings', 'status-error');
+        } else if (error.message.includes('HTTP error')) {
+          showResult(`Server Error: ${error.message}`, 'status-error');
+        } else {
+          showResult('Error connecting to server. Please try again.', 'status-error');
+        }
       } finally {
         lookupBtn.disabled = false;
         lookupBtn.textContent = 'Lookup Order';
@@ -512,111 +328,109 @@
       
       document.getElementById('orderInfo').classList.remove('hidden');
     }
-
-    // Start pickup functionality
-    async function startPickup() {
-      if (!currentOrderData || !currentOrderData.rfidUid) {
-        showResult('Please lookup an order first to get RFID code', 'status-error');
-        return;
-      }
-      
-      const rfid = currentOrderData.rfidUid;
-      const startBtn = document.getElementById('startBtn');
-      const dropBtn = document.getElementById('dropBtn');
-      
-      startBtn.disabled = true;
-      startBtn.textContent = 'Starting...';
-      showResult('Starting pickup monitoring...', 'status-monitoring');
-      
+    
+    // ThingSpeak functionality
+    async function fetchThingSpeak() {
       try {
-        const result = await apiCall('startPickup', { rfidUid: rfid });
-        console.log('Start pickup response:', result);
-        
-        if (result.success) {
-          startData = result.data;
-          showResult(`✅ Pickup started for: ${startData.orderId}`, 'status-monitoring');
-          showDebugInfo(`Pickup started: ${JSON.stringify(result.data)}`);
-          
-          // Update UI state
-          startBtn.disabled = true;
-          dropBtn.disabled = false;
-          startTimer();
-          
-        } else {
-          throw new Error(result.error || 'Failed to start pickup');
-        }
-        
+        const res = await fetch('https://api.thingspeak.com/channels/2994468/feeds.json?api_key=ORZJ88EUT7HLBIQC&results=1');
+        const data = await res.json();
+        return data.feeds[0];
       } catch (error) {
-        console.error('Start pickup error:', error);
-        showResult(`❌ Start pickup failed: ${error.message}`, 'status-error');
-        showDebugInfo(`Start pickup error: ${error.message}`);
-        
-        // Reset button state
-        startBtn.disabled = false;
-        startBtn.textContent = 'Start Pickup';
+        console.error('ThingSpeak fetch error:', error);
+        throw error;
       }
     }
-
-    // Drop pickup functionality
-    async function dropPickup() {
-      if (!startData) {
-        showResult('No active pickup to drop', 'status-error');
+    
+    async function startPickup() {
+      const rfidValue = document.getElementById('rfid').value.trim();
+      
+      if (!rfidValue) {
+        showResult('Please enter an RFID code', 'status-error');
         return;
       }
       
-      const dropBtn = document.getElementById('dropBtn');
-      const startBtn = document.getElementById('startBtn');
-      
-      dropBtn.disabled = true;
-      dropBtn.textContent = 'Dropping...';
-      showResult('Dropping pickup...', 'status-monitoring');
+      try {
+        document.getElementById('startBtn').disabled = true;
+        showResult('Starting pickup monitoring...', 'status-monitoring');
+        
+        startData = await fetchThingSpeak();
+        
+        document.getElementById('dropBtn').disabled = false;
+        showResult('Pickup Started. Monitoring sensor data...', 'status-monitoring');
+      } catch (error) {
+        console.error('Start pickup error:', error);
+        showResult('Error starting pickup monitoring', 'status-error');
+        document.getElementById('startBtn').disabled = false;
+      }
+    }
+    
+    async function dropPickup() {
+      if (!startData) {
+        showResult('Please start pickup first', 'status-error');
+        return;
+      }
       
       try {
-        const result = await apiCall('dropPickup', {
-          rfidUid: startData.rfidUid,
-          orderId: startData.orderId
-        });
-        console.log('Drop pickup response:', result);
+        document.getElementById('dropBtn').disabled = true;
+        showResult('Analyzing pickup data...', 'status-monitoring');
         
-        if (result.success) {
-          const elapsed = result.data.elapsed || 'unknown';
-          showResult(`✅ Pickup dropped. Duration: ${elapsed}`, 'status-refundable');
-          showDebugInfo(`Pickup completed: ${JSON.stringify(result.data)}`);
-          
-          // Reset UI state
-          startBtn.disabled = false;
-          dropBtn.disabled = true;
-          dropBtn.textContent = 'Drop Pickup';
-          startData = null;
-          stopTimer();
-          
+        const currentData = await fetchThingSpeak();
+        const classification = currentData.field5;
+        const shock = parseFloat(currentData.field3 || 0);
+        const light = parseFloat(currentData.field4 || 0);
+        
+        let finalDecision;
+        let statusClass;
+        
+        if (classification === 'Refundable' && shock < 50 && light < 50) {
+          finalDecision = 'REFUNDABLE';
+          statusClass = 'status-refundable';
         } else {
-          throw new Error(result.error || 'Failed to drop pickup');
+          finalDecision = 'EXCHANGE ONLY';
+          statusClass = 'status-exchange';
         }
+        
+        showResult(`Final Decision: ${finalDecision}`, statusClass);
+        
+        // Reset buttons
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('dropBtn').disabled = true;
+        startData = null;
+        
+        // Log sensor data
+        console.log('Sensor Data:', {
+          classification,
+          shock,
+          light,
+          decision: finalDecision
+        });
         
       } catch (error) {
         console.error('Drop pickup error:', error);
-        showResult(`❌ Drop pickup failed: ${error.message}`, 'status-error');
-        showDebugInfo(`Drop pickup error: ${error.message}`);
-        
-        // Reset button state but keep pickup active
-        dropBtn.disabled = false;
-        dropBtn.textContent = 'Drop Pickup';
+        showResult('Error analyzing pickup data', 'status-error');
+        document.getElementById('dropBtn').disabled = false;
       }
     }
-
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', function() {
-      showResult('Configure server URL and test connection to begin.', 'status-waiting');
-      console.log('Pickup Monitor initialized');
-      console.log('Script URL:', GOOGLE_SCRIPT_URL);
+    
+    function showResult(message, statusClass) {
+      const resultElement = document.getElementById('result');
+      resultElement.textContent = message;
+      resultElement.className = statusClass;
+    }
+    
+    // Allow Enter key for order lookup
+    document.getElementById('orderIdInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        lookupOrder();
+      }
     });
-
-    // Handle page visibility for timer accuracy
-    document.addEventListener('visibilitychange', function() {
-      if (!document.hidden && pickupTimer) {
-        // Page became visible again, sync timer
-        updateTimer();
+    
+    // Allow Enter key for RFID input
+    document.getElementById('rfid').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        if (!document.getElementById('startBtn').disabled) {
+          startPickup();
+        }
       }
     });
   </script>
