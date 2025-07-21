@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReTrack - Broken Return</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+    body {
+      background-color: #f9fafa;
+      color: #1f2937;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    p.subtitle {
+      font-size: 1.1rem;
+      margin-bottom: 25px;
+      color: #4b5563;
+      text-align: center;
+    }
+    .upload-container {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: 30px;
+    }
+    button {
+      padding: 12px;
+      background: transparent;
+      color: #2563eb;
+      border: 1px solid #2563eb;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    button:hover {
+      background: rgba(59, 130, 246, 0.1);
+    }
+    input[type="file"] {
+      display: none;
+    }
+    video {
+      display: none;
+      width: 100%;
+      max-width: 400px;
+      border-radius: 8px;
+      border: 2px solid #d1d5db;
+    }
+    canvas {
+      display: none;
+    }
+    img#preview {
+      margin-top: 20px;
+      max-width: 100%;
+      border-radius: 10px;
+      border: 2px solid #e5e7eb;
+      display: none;
+    }
+    .output {
+      margin-top: 20px;
+      text-align: center;
+    }
+    .output p {
+      font-size: 1.1rem;
+      margin: 5px 0;
+    }
+    #result {
+      font-weight: 600;
+      padding: 10px;
+      border-radius: 6px;
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
+    }
+    #status {
+      margin-top: 15px;
+      font-size: 0.95rem;
+      color: #6b7280;
+    }
+    .dashboard-link {
+      margin-top: 30px;
+      font-size: 1rem;
+      color: #2563eb;
+      text-decoration: none;
+    }
+    .dashboard-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <h1>ReTrack</h1>
+  <p class="subtitle">Upload a photo of the broken product to check refund eligibility</p>
+
+  <div class="upload-container">
+    <input type="file" id="imageInput" accept="image/*" />
+    <button onclick="document.getElementById('imageInput').click()">Upload from Gallery</button>
+    <button onclick="classify()">Classify Image</button>
+    <button onclick="startCamera()">Use Camera</button>
+    <video id="camera" autoplay playsinline></video>
+    <button onclick="captureFromCamera()" id="captureBtn" style="display:none;">Capture</button>
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <img id="preview" alt="Image Preview" />
+
+  <div class="output">
+    <p id="result"></p>
+    <p id="status">Status: Ready</p>
+  </div>
+
+  <a href="https://smarannadig.github.io/retrack-website/dashboard.html" class="dashboard-link">View Dashboard</a>
+
+  <script>
+    let model;
+    let videoStream;
+
+    async function loadModel() {
+      try {
+        const modelURL = 'https://raw.githubusercontent.com/SmaranNadig/retrack-website/main/model/model.json';
+        model = await tf.loadLayersModel(modelURL);
+        document.getElementById('status').innerText = 'Status: Model loaded successfully';
+      } catch (error) {
+        document.getElementById('status').innerText = `Status: Model load error - ${error.message}`;
+        console.error('Model load error:', error);
+      }
+    }
+    loadModel();
+
+    async function classify() {
+      const fileInput = document.getElementById('imageInput');
+      const img = document.getElementById('preview');
+
+      if (!fileInput.files[0]) {
+        alert('Please upload an image.');
+        document.getElementById('status').innerText = 'Status: No image provided';
+        return;
+      }
+
+      document.getElementById('status').innerText = 'Status: Classifying...';
+
+      img.src = URL.createObjectURL(fileInput.files[0]);
+      img.style.display = 'block';
+
+      img.onload = async () => {
+        try {
+          const image = tf.browser.fromPixels(img);
+          const resized = tf.image.resizeBilinear(image, [224, 224]);
+          const normalized = resized.div(255.0);
+          const batched = normalized.expandDims(0);
+
+          const prediction = await model.predict(batched).data();
+          const maxIndex = prediction.indexOf(Math.max(...prediction));
+          const confidence = prediction[maxIndex];
+
+          if (maxIndex === 0) { // Refundable
+            document.getElementById('result').innerText = 'PRODUCT IS BROKEN. REFUND WILL BE PROVIDED.';
+          } else { // Partially Refundable or Non-Refundable
+            document.getElementById('result').innerText = 'PRODUCT IS BROKEN. CANNOT BE REFUNDED. PLEASE EXCHANGE THE PRODUCT.';
+          }
+
+          document.getElementById('status').innerText = 'Status: Classification complete';
+          sendToThingSpeak(maxIndex === 0 ? 'Refundable' : 'Non-Refundable', confidence, 'uploaded-image');
+        } catch (error) {
+          document.getElementById('status').innerText = `Status: Classification error - ${error.message}`;
+          console.error('Classification error:', error);
+        }
+      };
+    }
+
+    function sendToThingSpeak(result, confidence, source) {
+      const apiKey = 'ORZJ88EUT7HLBIQC';
+      const url = `https://api.thingspeak.com/update?api_key=${apiKey}&field5=${encodeURIComponent(result)}&field6=${confidence}&status=${encodeURIComponent(source)}`;
+
+      fetch(url)
+        .then(response => {
+          if (response.ok) {
+            document.getElementById('status').innerText += ' | Data sent to ThingSpeak';
+          } else {
+            document.getElementById('status').innerText += ` | ThingSpeak error - ${response.status}`;
+          }
+        })
+        .catch(error => {
+          document.getElementById('status').innerText += ` | Network error - ${error.message}`;
+          console.error('ThingSpeak error:', error);
+        });
+    }
+
+    function startCamera() {
+      const video = document.getElementById('camera');
+      const captureBtn = document.getElementById('captureBtn');
+
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(stream => {
+          video.srcObject = stream;
+          videoStream = stream;
+          video.style.display = 'block';
+          captureBtn.style.display = 'inline-block';
+          document.getElementById('status').innerText = 'Status: Camera active';
+        })
+        .catch(error => {
+          document.getElementById('status').innerText = `Status: Camera error - ${error.message}`;
+          console.error('Camera error:', error);
+        });
+    }
+
+    async function captureFromCamera() {
+      const video = document.getElementById('camera');
+      const canvas = document.getElementById('canvas');
+      const context = canvas.getContext('2d');
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0);
+
+      const preview = document.getElementById('preview');
+      preview.src = canvas.toDataURL('image/jpeg');
+      preview.style.display = 'block';
+
+      const imgTensor = tf.browser.fromPixels(canvas);
+      const resized = tf.image.resizeBilinear(imgTensor, [224, 224]);
+      const normalized = resized.div(255.0);
+      const batched = normalized.expandDims(0);
+
+      document.getElementById('status').innerText = 'Status: Classifying camera image...';
+
+      try {
+        const prediction = await model.predict(batched).data();
+        const maxIndex = prediction.indexOf(Math.max(...prediction));
+        const confidence = prediction[maxIndex];
+
+        if (maxIndex === 0) { // Refundable
+          document.getElementById('result').innerText = 'PRODUCT IS BROKEN. REFUND WILL BE PROVIDED.';
+        } else { // Partially Refundable or Non-Refundable
+          document.getElementById('result').innerText = 'PRODUCT IS BROKEN. CANNOT BE REFUNDED. PLEASE EXCHANGE THE PRODUCT.';
+        }
+
+        document.getElementById('status').innerText = 'Status: Classification complete';
+        sendToThingSpeak(maxIndex === 0 ? 'Refundable' : 'Non-Refundable', confidence, 'captured-by-camera');
+      } catch (error) {
+        document.getElementById('status').innerText = `Status: Classification error - ${error.message}`;
+        console.error('Camera classification error:', error);
+      }
+    }
+  </script>
+</body>
+</html>

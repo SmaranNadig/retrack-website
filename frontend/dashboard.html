@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReTrack Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin: 20px; background-color: #f0f0f0; }
+    h1, h2 { color: #333; }
+    canvas { max-width: 400px; margin: 20px auto; background-color: white; padding: 10px; }
+    img { max-width: 300px; border: 2px solid #ddd; margin: 10px; }
+    p { font-size: 18px; color: #555; }
+    a { color: #4BC0C0; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <h1>ReTrack Return Dashboard</h1>
+  <p>View real-time sensor data, classification results, and decisions</p>
+  <canvas id="sensorChart"></canvas>
+  <h2>Classified Image</h2>
+  <img id="returnImage" alt="No image available">
+  <p id="classification">Classification: Waiting...</p>
+  <p id="confidence">Confidence: Waiting...</p>
+  <p id="decision">Decision: Waiting...</p>
+  <p><a href="index.html">Classify Another Image</a></p>
+  <script>
+    const channelId = '2994468';
+    const readApiKey = 'ORZJ88EUT7HLBIQC';
+    async function fetchData() {
+      try {
+        const url = `https://api.thingspeak.com/channels/${channelId}/feeds.json?api_key=${readApiKey}&results=1`;
+        const response = await fetch(url);
+        const data = await response.json();
+        const feed = data.feeds[0];
+        document.getElementById('returnImage').src = feed.status || '';
+        document.getElementById('classification').innerText = `Classification: ${feed.field5 || 'N/A'}`;
+        document.getElementById('confidence').innerText = `Confidence: ${feed.field6 ? (feed.field6 * 100).toFixed(2) + '%' : 'N/A'}`;
+        document.getElementById('decision').innerText = `Decision: ${feed.field7 || 'N/A'}`;
+        new Chart(document.getElementById('sensorChart'), {
+          type: 'line',
+          data: {
+            labels: ['Temperature', 'Humidity', 'Shock', 'Light'],
+            datasets: [{
+              label: 'Sensor Data',
+              data: [feed.field1, feed.field2, feed.field3, feed.field4],
+              borderColor: '#4BC0C0',
+              backgroundColor: '#4BC0C0',
+              fill: false,
+              pointBackgroundColor: '#4BC0C0'
+            }]
+          },
+          options: {
+            scales: { y: { beginAtZero: true } },
+            plugins: { legend: { display: true } }
+          }
+        });
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        document.getElementById('classification').innerText = 'Error fetching data';
+      }
+    }
+    fetchData();
+    setInterval(fetchData, 60000); // Refresh every minute
+  </script>
+</body>
+</html>

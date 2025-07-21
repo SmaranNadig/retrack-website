@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Exchange Product - ReTrack</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+    body {
+      background-color: #f3f4f6;
+      color: #1f2937;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 600;
+      color: #2563eb;
+      margin-bottom: 10px;
+    }
+    p.subtitle {
+      font-size: 1rem;
+      margin-bottom: 25px;
+      color: #4b5563;
+    }
+    .container {
+      width: 100%;
+      max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    input[type="file"], input[type="text"] {
+      padding: 12px;
+      font-size: 1rem;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      width: 100%;
+    }
+    button {
+      background: transparent;
+      border: 2px solid #2563eb;
+      color: #2563eb;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    button:hover {
+      background-color: #2563eb;
+      color: white;
+    }
+    #preview {
+      margin-top: 20px;
+      max-width: 300px;
+      border-radius: 8px;
+      display: none;
+      border: 2px solid #ccc;
+    }
+    #status {
+      margin-top: 15px;
+      font-size: 0.95rem;
+      color: #6b7280;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>Product Exchange</h1>
+  <p class="subtitle">Generate unique code and classify product for exchange</p>
+
+  <div class="container">
+    <button onclick="generateRFID()">Generate RFID Code</button>
+    <input type="text" id="rfidCode" placeholder="RFID Code" readonly>
+
+    <input type="file" id="imageInput" accept="image/*" style="display: none;">
+    <button onclick="document.getElementById('imageInput').click()">Upload Product Image</button>
+    <button onclick="classify()">Classify for Exchange</button>
+  </div>
+
+  <img id="preview" alt="Image Preview">
+
+  <p id="status">Status: Waiting...</p>
+
+  <script>
+    let model;
+    async function loadModel() {
+      const modelURL = 'https://raw.githubusercontent.com/SmaranNadig/retrack-website/main/model/model.json';
+      model = await tf.loadLayersModel(modelURL);
+      document.getElementById('status').innerText = 'Status: Model loaded ✅';
+    }
+    loadModel();
+
+    function generateRFID() {
+      const code = 'RFID-' + Math.random().toString(36).substr(2, 8).toUpperCase();
+      document.getElementById('rfidCode').value = code;
+    }
+
+    async function classify() {
+      const file = document.getElementById('imageInput').files[0];
+      if (!file) {
+        alert('Please upload an image');
+        return;
+      }
+
+      const img = document.getElementById('preview');
+      img.src = URL.createObjectURL(file);
+      img.style.display = 'block';
+
+      img.onload = async () => {
+        const tensor = tf.browser.fromPixels(img).resizeBilinear([224, 224]).div(255).expandDims(0);
+        const prediction = await model.predict(tensor).data();
+        const label = prediction[0] > 0.5 ? 'Refundable' : 'Exchange';
+        document.getElementById('status').innerText = `Product classified: ${label}`;
+        sendToThingSpeak(label, 'camera-or-gallery');
+      };
+    }
+
+    function sendToThingSpeak(result, source) {
+      const apiKey = 'ORZJ88EUT7HLBIQC';
+      fetch(`https://api.thingspeak.com/update?api_key=${apiKey}&field5=${result}&status=${source}`);
+    }
+  </script>
+</body>
+</html>
