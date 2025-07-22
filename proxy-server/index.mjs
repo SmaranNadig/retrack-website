@@ -15,7 +15,7 @@ app.use(cors({
 
 app.use(express.json());
 
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbygZEBgBwMeWUhWDJsWofTAAgKNBWSzlsuvcYrikTulqiOzFLkmZU1OIgphwct5_YSuBQ/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbzfIVY8zaE0cNDtsWhD1iJ6nAdRfLbn7g3cj4kD9uPc0Ys18EezNnLXlMtwSpRkJ-IMhw/exec';
 
 // Health check endpoint
 app.get('/health', (req, res) => {
