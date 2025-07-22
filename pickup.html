@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Pickup Monitor - ReTrack</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <title>Enhanced Pickup Monitor - ReTrack</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     * { 
       margin: 0; 
@@ -14,425 +15,1374 @@
     }
     
     body {
-      background-color: #f3f4f6;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
       color: #1f2937;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 40px 20px;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
     }
     
     h1 {
-      font-size: 2.2rem;
-      font-weight: 600;
-      color: #2563eb;
-      margin-bottom: 10px;
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 30px;
+      text-align: center;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 25px;
+      margin-bottom: 30px;
     }
     
     .section {
-      background: white;
-      border-radius: 12px;
-      padding: 25px;
-      margin: 15px 0;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-      max-width: 500px;
-      width: 100%;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
     }
     
     .section h2 {
-      font-size: 1.4rem;
-      margin-bottom: 20px;
+      font-size: 1.5rem;
+      margin-bottom: 25px;
       color: #374151;
-      border-bottom: 2px solid #e5e7eb;
-      padding-bottom: 8px;
-    }
-    
-    .form-group {
+      font-weight: 600;
       display: flex;
-      gap: 10px;
-      flex-direction: column;
-      margin-bottom: 15px;
-    }
-    
-    .form-row {
-      display: flex;
+      align-items: center;
       gap: 10px;
     }
     
-    input {
-      padding: 12px;
-      font-size: 1rem;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      flex: 1;
+    .time-filters {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
     }
     
-    input:focus {
-      outline: none;
-      border-color: #2563eb;
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-    }
-    
-    button {
+    .time-filter {
       background: transparent;
-      border: 2px solid #2563eb;
-      color: #2563eb;
-      padding: 12px 16px;
-      border-radius: 8px;
-      font-size: 1rem;
+      border: 2px solid #6366f1;
+      color: #6366f1;
+      padding: 8px 16px;
+      border-radius: 25px;
+      font-size: 0.9rem;
       cursor: pointer;
       transition: all 0.3s ease;
       font-weight: 500;
     }
     
-    button:hover {
-      background-color: #2563eb;
+    .time-filter:hover, .time-filter.active {
+      background-color: #6366f1;
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(99, 102, 241, 0.3);
+    }
+    
+    .orders-list {
+      max-height: 400px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+    }
+    
+    .order-item {
+      background: #f8fafc;
+      border: 2px solid transparent;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    
+    .order-item:hover {
+      background: #e2e8f0;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .order-item.selected {
+      border-color: #6366f1;
+      background: linear-gradient(135deg, #e0e7ff, #f1f5f9);
+      box-shadow: 0 8px 25px rgba(99, 102, 241, 0.2);
+    }
+    
+    .order-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    
+    .order-id {
+      font-weight: 600;
+      color: #1e293b;
+      font-size: 1.1rem;
+    }
+    
+    .order-time {
+      font-size: 0.85rem;
+      color: #64748b;
+      background: #e2e8f0;
+      padding: 4px 8px;
+      border-radius: 8px;
+    }
+    
+    .order-details {
+      font-size: 0.9rem;
+      color: #475569;
+      line-height: 1.4;
+    }
+    
+    .order-status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-top: 8px;
+    }
+    
+    .status-pending {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    
+    .status-ready {
+      background: #dcfce7;
+      color: #166534;
+    }
+    
+    .status-picked {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+    
+    .pickup-controls {
+      display: none;
+      background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+      border-radius: 15px;
+      padding: 25px;
+      margin-top: 20px;
+      border: 2px solid #e5e7eb;
+    }
+    
+    .pickup-controls.show {
+      display: block;
+      animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .control-buttons {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .btn {
+      background: transparent;
+      border: 2px solid;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      transition: left 0.5s;
+    }
+    
+    .btn:hover::before {
+      left: 100%;
+    }
+    
+    .btn-start {
+      border-color: #10b981;
+      color: #10b981;
+    }
+    
+    .btn-start:hover, .btn-start:disabled {
+      background-color: #10b981;
       color: white;
     }
     
-    button:disabled {
-      opacity: 0.5;
+    .btn-stop {
+      border-color: #ef4444;
+      color: #ef4444;
+    }
+    
+    .btn-stop:hover {
+      background-color: #ef4444;
+      color: white;
+    }
+    
+    .btn:disabled {
+      opacity: 0.6;
       cursor: not-allowed;
     }
     
-    .success-btn {
-      border-color: #059669;
-      color: #059669;
-    }
-    
-    .success-btn:hover {
-      background-color: #059669;
+    .rfid-status {
+      background: #1e293b;
       color: white;
-    }
-    
-    .danger-btn {
-      border-color: #dc2626;
-      color: #dc2626;
-    }
-    
-    .danger-btn:hover {
-      background-color: #dc2626;
-      color: white;
-    }
-    
-    .order-info {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 15px;
-      margin: 15px 0;
-    }
-    
-    .order-info h3 {
-      color: #1e293b;
-      margin-bottom: 10px;
-      font-size: 1.1rem;
-    }
-    
-    .order-detail {
-      display: flex;
-      justify-content: space-between;
-      margin: 5px 0;
-      padding: 2px 0;
-    }
-    
-    .order-detail strong {
-      color: #475569;
-      font-weight: 600;
-    }
-    
-    #result {
-      margin-top: 20px;
-      font-size: 1.1rem;
-      font-weight: 500;
-      padding: 12px;
-      border-radius: 8px;
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 15px;
       text-align: center;
+      font-weight: 500;
+      position: relative;
+      overflow: hidden;
     }
     
-    .status-waiting {
-      background: #fef3c7;
-      color: #92400e;
-      border: 1px solid #fbbf24;
+    .rfid-status.waiting {
+      background: linear-gradient(45deg, #f59e0b, #d97706);
+      animation: pulse 2s infinite;
     }
     
-    .status-monitoring {
-      background: #dbeafe;
-      color: #1e40af;
-      border: 1px solid #3b82f6;
+    .rfid-status.detected {
+      background: linear-gradient(45deg, #10b981, #059669);
     }
     
-    .status-refundable {
-      background: #dcfce7;
-      color: #166534;
-      border: 1px solid #22c55e;
+    .rfid-status.error {
+      background: linear-gradient(45deg, #ef4444, #dc2626);
     }
     
-    .status-exchange {
-      background: #fee2e2;
-      color: #991b1b;
-      border: 1px solid #ef4444;
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
     }
     
-    .status-error {
-      background: #fecaca;
-      color: #b91c1c;
-      border: 1px solid #f87171;
+.monitoring-dashboard {
+  display: none;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 25px;
+  margin-top: 30px;
+  min-height: 600px;
+}
+
+.monitoring-dashboard.show {
+  display: grid;
+  animation: fadeIn 0.5s ease;
+}
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
     
-    .loading {
-      opacity: 0.6;
+.chart-container {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 25px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
+  height: 100%;
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+
+.chart-wrapper {
+  flex: 1;
+  position: relative;
+  min-height: 180px;
+  width: 100%;
+}
+
+.chart-wrapper canvas {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.current-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-top: 5px;
+  line-height: 1;
+}
+
+.chart-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2d3436;
+  margin-bottom: 5px;
+}
+
+    .chart-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
     }
     
-    .hidden {
-      display: none;
+    .chart-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+    
+    .temperature-icon {
+      background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+      color: white;
+    }
+    
+    .humidity-icon {
+      background: linear-gradient(135deg, #74b9ff, #0984e3);
+      color: white;
+    }
+    
+    .shock-icon {
+      background: linear-gradient(135deg, #fdcb6e, #e17055);
+      color: white;
+    }
+    
+    .light-icon {
+      background: linear-gradient(135deg, #ffeaa7, #fdcb6e);
+      color: #2d3436;
+    }
+    
+    .chart-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #2d3436;
+    }
+    
+    .current-value {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-top: 10px;
+    }
+    
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #6366f1;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 10px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+@media (max-width: 1200px) {
+  .monitoring-dashboard {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1200px) {
+  .monitoring-dashboard {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    min-height: auto;
+  }
+  
+  .chart-container {
+    min-height: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .monitoring-dashboard {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    gap: 20px;
+  }
+  
+  .chart-container {
+    min-height: 280px;
+    padding: 20px;
+  }
+  
+  .current-value {
+    font-size: 1.5rem;
+  }
+  
+  h1 {
+    font-size: 2rem;
+  }
+}
+     
+    .alert {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 20px;
+      border-radius: 10px;
+      color: white;
+      font-weight: 600;
+      z-index: 1000;
+      transform: translateX(400px);
+      transition: transform 0.3s ease;
+    }
+    
+    .alert.show {
+      transform: translateX(0);
+    }
+    
+    .alert.success {
+      background: linear-gradient(135deg, #10b981, #059669);
+    }
+    
+    .alert.error {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+    }
+    
+    @media (max-width: 768px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .time-filters {
+        justify-content: center;
+      }
+      
+      .control-buttons {
+        flex-direction: column;
+      }
+      
+      h1 {
+        font-size: 2rem;
+      }
+	.rfid-status.not-detected {
+  background: linear-gradient(45deg, #f59e0b, #d97706);
+  animation: pulse 2s infinite;
+}
     }
   </style>
 </head>
 <body>
-  <h1>Pickup Dashboard</h1>
-  
-  <!-- Order Lookup Section -->
-  <div class="section">
-    <h2>📋 Order Lookup</h2>
-    <div class="form-group">
-      <input type="text" id="orderIdInput" placeholder="Enter Order ID (e.g., RE1234567890)" />
-      <button onclick="lookupOrder()" id="lookupBtn">Lookup Order</button>
+
+
+  <div class="container">
+    <h1>🚚 Pickup Dashboard</h1>
+    
+    <div class="dashboard-grid">
+      <!-- Orders List Section -->
+      <div class="section">
+        <h2>📋 Recent Orders</h2>
+        
+        <div class="time-filters">
+          <button class="time-filter active" data-minutes="5">Last 5 min</button>
+          <button class="time-filter" data-minutes="10">Last 10 min</button>
+          <button class="time-filter" data-minutes="30">Last 30 min</button>
+          <button class="time-filter" data-minutes="60">Last 1 hour</button>
+          <button class="time-filter" data-minutes="1440">All Today</button>
+        </div>
+        
+        <div class="orders-list" id="ordersList">
+          <div class="loading-spinner"></div> Loading orders...
+        </div>
+        
+        <button onclick="refreshOrders()" class="time-filter">🔄 Refresh</button>
+      </div>
+
+
+      
+      <!-- Pickup Controls Section -->
+      <div class="section">
+        <h2>📦 Pickup Control Center</h2>
+        <div id="selectedOrderInfo">
+          <p style="color: #64748b; text-align: center; padding: 40px 20px;">
+            📋 Select an order from the list to start pickup process
+          </p>
+        </div>
+        
+        <div class="pickup-controls" id="pickupControls">
+          <div class="control-buttons">
+            <button class="btn btn-start" id="startBtn" onclick="startPickup()">
+              🚀 Start Pickup
+            </button>
+            <button class="btn btn-stop" id="stopBtn" onclick="stopPickup()" disabled>
+              ⏹️ Stop Pickup
+            </button>
+          </div>
+          
+          <div class="rfid-status" id="rfidStatus">
+            📡 Ready to scan RFID card...
+          </div>
+        </div>
+      </div>
     </div>
     
-    <div id="orderInfo" class="order-info hidden">
-      <h3>Order Details</h3>
-      <div class="order-detail">
-        <span><strong>Order ID:</strong></span>
-        <span id="orderIdDisplay">-</span>
-      </div>
-      <div class="order-detail">
-        <span><strong>Owner:</strong></span>
-        <span id="ownerDisplay">-</span>
-      </div>
-      <div class="order-detail">
-        <span><strong>Purchase Date:</strong></span>
-        <span id="purchaseDateDisplay">-</span>
-      </div>
-      <div class="order-detail">
-        <span><strong>RFID:</strong></span>
-        <span id="rfidDisplay">-</span>
-      </div>
-      <div class="order-detail">
-        <span><strong>Status:</strong></span>
-        <span id="statusDisplay">-</span>
+ <!-- Monitoring Dashboard -->
+<div class="monitoring-dashboard" id="monitoringDashboard">
+  <div class="chart-container">
+    <div class="chart-header">
+      <div class="chart-icon temperature-icon">🌡️</div>
+      <div>
+        <div class="chart-title">Temperature</div>
+        <div class="current-value" id="tempValue">--°C</div>
       </div>
     </div>
-  </div>
-  
-  <!-- Pickup Monitoring Section -->
-  <div class="section">
-    <h2>📦 Pickup Monitoring</h2>
-    <div class="form-group">
-      <input type="text" id="rfid" placeholder="Enter RFID Code" />
-      <div class="form-row">
-        <button onclick="startPickup()" class="success-btn" id="startBtn">Start Pickup</button>
-        <button onclick="dropPickup()" class="danger-btn" id="dropBtn" disabled>Drop Pickup</button>
-      </div>
+    <div class="chart-wrapper">
+      <canvas id="tempChart"></canvas>
     </div>
   </div>
-  
-  <p id="result" class="status-waiting">Status: Waiting for action...</p>
+
+  <div class="chart-container">
+    <div class="chart-header">
+      <div class="chart-icon humidity-icon">💧</div>
+      <div>
+        <div class="chart-title">Humidity</div>
+        <div class="current-value" id="humidityValue">--%</div>
+      </div>
+    </div>
+    <div class="chart-wrapper">
+      <canvas id="humidityChart"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-container">
+    <div class="chart-header">
+      <div class="chart-icon shock-icon">⚡</div>
+      <div>
+        <div class="chart-title">Shock/Vibration</div>
+        <div class="current-value" id="shockValue">--</div>
+      </div>
+    </div>
+    <div class="chart-wrapper">
+      <canvas id="shockChart"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-container">
+    <div class="chart-header">
+      <div class="chart-icon light-icon">💡</div>
+      <div>
+        <div class="chart-title">Light Intensity</div>
+        <div class="current-value" id="lightValue">-- lux</div>
+      </div>
+    </div>
+    <div class="chart-wrapper">
+      <canvas id="lightChart"></canvas>
+    </div>
+  </div>
+</div>
+<div id="finalResultMessage" style="
+  display: none;
+  margin: 40px auto 20px;
+  padding: 6px 16px;
+  border-radius: 6px;
+  background: #10b981;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 500;
+  width: fit-content;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+"></div>
+
+
+
 
   <script>
-    // Configuration - Replace with your Google Apps Script URL
+    // Configuration - Replace with your actual values
     const GOOGLE_SCRIPT_URL = 'https://retrack-website.onrender.com/lookup';
+    const THINGSPEAK_WRITE_API_KEY = 'ORZJ88EUT7HLBIQC'; // Your ThingSpeak Write API Key
+    const THINGSPEAK_READ_API_KEY = 'X1G7PC4FU34SWIOT';  // Your ThingSpeak Read API Key
+    const THINGSPEAK_CHANNEL_ID = '2994468';    // Your ThingSpeak Channel ID
     
-    let startData;
-    let currentOrderData;
+    let selectedOrder = null;
+    let isMonitoring = false;
+    let rfidInterval = null;
+    let monitoringInterval = null;
+    let charts = {};
+    let currentTimeFilter = 5; // Default to 5 minutes
+    let ordersData = []; // Store orders data
+const pollingMaxAttempts = 3; // 3 x 10s = 30 seconds
 
-    // Order lookup functionality
-    async function lookupOrder() {
-      const orderId = document.getElementById('orderIdInput').value.trim();
-      const lookupBtn = document.getElementById('lookupBtn');
-      const orderInfo = document.getElementById('orderInfo');
+let thresholdViolations = {
+  temperature: false,
+  humidity: false,
+  shock: false,
+  light: false
+};
+
+    
+
+    // Initialize dashboard
+    document.addEventListener('DOMContentLoaded', function() {
+      loadOrders();
+      initializeCharts();
+      setupTimeFilters();
       
-      if (!orderId) {
-        showResult('Please enter an Order ID', 'status-error');
-        return;
-      }
-      
-      // Show loading state
-      lookupBtn.disabled = true;
-      lookupBtn.textContent = 'Looking up...';
-      showResult('Looking up order...', 'status-monitoring');
-      
-      try {
-        console.log('Making request to:', GOOGLE_SCRIPT_URL);
-        console.log('Request data:', { action: 'getOrder', orderId: orderId });
-        
-        const response = await fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            action: 'getOrder',
-            orderId: orderId
-          }),
-          mode: 'cors'
+      // Auto-refresh orders every 30 seconds
+      setInterval(loadOrders, 30000);
+    });
+    
+    // Setup time filter buttons
+    function setupTimeFilters() {
+      document.querySelectorAll('.time-filter[data-minutes]').forEach(btn => {
+        btn.addEventListener('click', function() {
+          // Remove active class from all buttons
+          document.querySelectorAll('.time-filter[data-minutes]').forEach(b => b.classList.remove('active'));
+          // Add active class to clicked button
+          this.classList.add('active');
+          // Update filter and reload orders
+          currentTimeFilter = parseInt(this.dataset.minutes);
+          loadOrders();
         });
-        
-        console.log('Response status:', response.status);
-        console.log('Response headers:', [...response.headers.entries()]);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        console.log('Response data:', result);
-        
-        if (result.success) {
-          currentOrderData = result.data;
-          displayOrderInfo(result.data);
-          showResult(`Order found: ${result.data.orderId}`, 'status-refundable');
+      });
+    }
+    
+    // Load orders from server or generate sample data
+    async function loadOrders() {
+      try {
+        // If Google Script URL is configured, try to fetch from server
+        if (GOOGLE_SCRIPT_URL) {
+          const response = await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'getRecentOrders',
+              timeMinutes: currentTimeFilter
+            })
+          });
           
-          // Auto-populate RFID field if available
-          if (result.data.rfidUid) {
-            document.getElementById('rfid').value = result.data.rfidUid;
+          const result = await response.json();
+          
+          if (result.success) {
+            ordersData = result.data || [];
+            displayOrders(ordersData);
+            return;
           }
-        } else {
-          orderInfo.classList.add('hidden');
-          showResult(`Error: ${result.error}`, 'status-error');
         }
-      } catch (error) {
-        console.error('Lookup error:', error);
-        orderInfo.classList.add('hidden');
         
-        // More specific error messages
-        if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-          showResult('CORS Error: Please check Google Apps Script deployment settings', 'status-error');
-        } else if (error.message.includes('HTTP error')) {
-          showResult(`Server Error: ${error.message}`, 'status-error');
-        } else {
-          showResult('Error connecting to server. Please try again.', 'status-error');
-        }
-      } finally {
-        lookupBtn.disabled = false;
-        lookupBtn.textContent = 'Lookup Order';
-      }
-    }
-    
-    function displayOrderInfo(data) {
-      document.getElementById('orderIdDisplay').textContent = data.orderId || 'N/A';
-      document.getElementById('ownerDisplay').textContent = data.ownerName || 'N/A';
-      document.getElementById('purchaseDateDisplay').textContent = data.purchaseDate || 'N/A';
-      document.getElementById('rfidDisplay').textContent = data.rfidUid || 'N/A';
-      document.getElementById('statusDisplay').textContent = data.status || 'N/A';
-      
-      document.getElementById('orderInfo').classList.remove('hidden');
-    }
-    
-    // ThingSpeak functionality
-    async function fetchThingSpeak() {
-      try {
-        const res = await fetch('https://api.thingspeak.com/channels/2994468/feeds.json?api_key=ORZJ88EUT7HLBIQC&results=1');
-        const data = await res.json();
-        return data.feeds[0];
+        // Fallback: Generate sample orders for demo
+        generateSampleOrders();
+        
       } catch (error) {
-        console.error('ThingSpeak fetch error:', error);
-        throw error;
+        console.error('Error loading orders:', error);
+        // Fallback to sample data
+        generateSampleOrders();
       }
     }
     
+    // Generate sample orders for demonstration
+    function generateSampleOrders() {
+      const now = new Date();
+      const sampleOrders = [];
+      
+      // Generate orders based on time filter
+      const orderCount = Math.min(currentTimeFilter / 5, 10); // 1 order per 5 minutes, max 10
+      
+      for (let i = 0; i < orderCount; i++) {
+        const minutesAgo = Math.floor(Math.random() * currentTimeFilter);
+        const orderTime = new Date(now - minutesAgo * 60000);
+        
+        const statuses = ['pending', 'ready', 'picked'];
+        const owners = ['Alice Johnson', 'Bob Smith', 'Charlie Brown', 'Diana Prince', 'Edward Davis'];
+        
+        const order = {
+          orderId: `ORD-${String(Date.now() + i).slice(-6)}`,
+          timestamp: orderTime.toISOString(),
+          ownerName: owners[Math.floor(Math.random() * owners.length)],
+          rfidUid: Math.random() > 0.3 ? `RFID_${String(Math.random()).slice(2, 8)}` : null,
+          status: statuses[Math.floor(Math.random() * statuses.length)]
+        };
+        
+        sampleOrders.push(order);
+      }
+      
+      // Sort by timestamp (newest first)
+      ordersData = sampleOrders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      displayOrders(ordersData);
+    }
+    
+    // Display orders in the list
+    function displayOrders(orders) {
+      const ordersList = document.getElementById('ordersList');
+      
+      if (orders.length === 0) {
+        ordersList.innerHTML = `
+          <div style="text-align: center; padding: 40px 20px; color: #64748b;">
+            📭 No orders found in the selected time range
+          </div>
+        `;
+        return;
+      }
+      
+      ordersList.innerHTML = orders.map(order => `
+        <div class="order-item" onclick="selectOrder('${order.orderId}')" data-order-id="${order.orderId}">
+          <div class="order-header">
+            <div class="order-id">${order.orderId}</div>
+            <div class="order-time">${formatTimeAgo(order.timestamp)}</div>
+          </div>
+          <div class="order-details">
+            <strong>Owner:</strong> ${order.ownerName || 'N/A'}<br>
+            <strong>RFID:</strong> ${order.rfidUid || 'Not assigned'}
+          </div>
+          <div class="order-status status-${order.status?.toLowerCase() || 'pending'}">
+            ${order.status || 'Pending'}
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    // Format time ago
+    function formatTimeAgo(timestamp) {
+      const now = new Date();
+      const orderTime = new Date(timestamp);
+      const diffMinutes = Math.floor((now - orderTime) / 60000);
+      
+      if (diffMinutes < 1) return 'Just now';
+      if (diffMinutes < 60) return `${diffMinutes}m ago`;
+      
+      const diffHours = Math.floor(diffMinutes / 60);
+      if (diffHours < 24) return `${diffHours}h ago`;
+      
+      return orderTime.toLocaleDateString();
+    }
+    
+    // Select an order
+    function selectOrder(orderId) {
+      // Remove previous selection
+      document.querySelectorAll('.order-item').forEach(item => {
+        item.classList.remove('selected');
+      });
+      
+      // Add selection to clicked item
+      const selectedElement = document.querySelector(`[data-order-id="${orderId}"]`);
+      if (selectedElement) {
+        selectedElement.classList.add('selected');
+        
+        // Find order data
+        selectedOrder = ordersData.find(order => order.orderId === orderId);
+        
+        if (selectedOrder) {
+          showPickupControls(selectedOrder);
+        }
+      }
+    }
+    
+    // Show pickup controls for selected order
+    function showPickupControls(order) {
+      const selectedInfo = document.getElementById('selectedOrderInfo');
+      const pickupControls = document.getElementById('pickupControls');
+      
+      selectedInfo.innerHTML = `
+        <div style="background: linear-gradient(135deg, #e0e7ff, #f1f5f9); padding: 20px; border-radius: 15px; margin-bottom: 20px;">
+          <h3 style="color: #4f46e5; margin-bottom: 15px;">📦 Selected Order</h3>
+          <p><strong>Order ID:</strong> ${order.orderId}</p>
+          <p><strong>Owner:</strong> ${order.ownerName || 'N/A'}</p>
+	<p><strong>Address:</strong> ${order.address || 'N/A'}</p>
+          <p><strong>RFID:</strong> ${order.rfidUid || 'Not assigned'}</p>
+          <p><strong>Status:</strong> ${order.status || 'Pending'}</p>
+          <p><strong>Time:</strong> ${formatTimeAgo(order.timestamp)}</p>
+        </div>
+      `;
+      
+      // Reset the controls state
+      resetPickupControls();
+      pickupControls.classList.add('show');
+    }
+
+
+
+
+    
+    // Reset pickup controls
+    function resetPickupControls() {
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const rfidStatus = document.getElementById('rfidStatus');
+      
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      rfidStatus.className = 'rfid-status';
+      rfidStatus.innerHTML = '📡 Ready to scan RFID card...';
+    }
+    
+    // Start pickup process
     async function startPickup() {
-      const rfidValue = document.getElementById('rfid').value.trim();
-      
-      if (!rfidValue) {
-        showResult('Please enter an RFID code', 'status-error');
+      if (!selectedOrder) {
+        showAlert('Please select an order first', 'error');
         return;
       }
       
-      try {
-        document.getElementById('startBtn').disabled = true;
-        showResult('Starting pickup monitoring...', 'status-monitoring');
-        
-        startData = await fetchThingSpeak();
-        
-        document.getElementById('dropBtn').disabled = false;
-        showResult('Pickup Started. Monitoring sensor data...', 'status-monitoring');
-      } catch (error) {
-        console.error('Start pickup error:', error);
-        showResult('Error starting pickup monitoring', 'status-error');
-        document.getElementById('startBtn').disabled = false;
-      }
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const rfidStatus = document.getElementById('rfidStatus');
+      
+      // Update UI
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      rfidStatus.className = 'rfid-status waiting';
+      rfidStatus.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+          <div class="loading-spinner"></div>
+          📡 Waiting for RFID card scan...
+        </div>
+      `;
+      
+
+      startRFIDPolling();
+      showAlert('Pickup started! Please scan RFID card.', 'success');
     }
     
-    async function dropPickup() {
-      if (!startData) {
-        showResult('Please start pickup first', 'status-error');
-        return;
+    let rfidPollingInterval = null;
+let pollingAttempts = 0;
+
+
+async function startRFIDPolling() {
+  const rfidStatus = document.getElementById('rfidStatus');
+  pollingAttempts = 0;
+
+  rfidStatus.className = 'rfid-status';
+  rfidStatus.innerHTML = '🔄 Waiting for RFID card...';
+
+  rfidPollingInterval = setInterval(async () => {
+    pollingAttempts++;
+
+    const match = await checkThingSpeakForRFID();
+
+    if (match) {
+      clearInterval(rfidPollingInterval);
+      rfidStatus.className = 'rfid-status detected';
+      rfidStatus.innerHTML = `✅ RFID Detected: ${match.rfid}`;
+      showAlert(`RFID matched! Starting monitoring...`, 'success');
+
+      setTimeout(() => {
+        startMonitoring();
+      }, 2000);
+    } else if (pollingAttempts >= pollingMaxAttempts) {
+      clearInterval(rfidPollingInterval);
+      rfidStatus.className = 'rfid-status not-detected';
+      rfidStatus.innerHTML = '❌ No RFID card detected. Retrying...';
+
+      setTimeout(() => {
+        startRFIDPolling(); // Retry
+      }, 3000);
+    }
+  }, 10000); // Every 10 seconds
+}
+
+async function checkThingSpeakForRFID() {
+  try {
+    if (!THINGSPEAK_CHANNEL_ID || !THINGSPEAK_READ_API_KEY) {
+      console.warn('ThingSpeak keys missing');
+      return null;
+    }
+
+    const url = `https://api.thingspeak.com/channels/${THINGSPEAK_CHANNEL_ID}/feeds.json?api_key=${THINGSPEAK_READ_API_KEY}&results=1`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    const latestFeed = data.feeds[0];
+    if (!latestFeed) return null;
+
+    const field1RFID = latestFeed.field1;
+
+    console.log('ThingSpeak feed:', latestFeed);
+console.log("Checking match:");
+console.log("ThingSpeak UID:", field1RFID);
+console.log("Selected order UID:", selectedOrder?.rfidUid);
+
+
+    // Match both RFID and order ID
+   if (
+  field1RFID &&
+  selectedOrder &&
+  selectedOrder.rfidUid &&
+  field1RFID.toUpperCase() === selectedOrder.rfidUid.toUpperCase()
+) {
+  return { rfid: field1RFID };
+}
+
+
+    return null;
+  } catch (error) {
+    console.error('Error checking ThingSpeak for RFID:', error);
+    return null;
+  }
+}
+
+    // Start monitoring dashboard
+    function startMonitoring() {
+      isMonitoring = true;
+      const dashboard = document.getElementById('monitoringDashboard');
+      dashboard.classList.add('show');
+      
+      // Start fetching data from ThingSpeak
+      fetchThingSpeakData();
+      monitoringInterval = setInterval(fetchThingSpeakData, 5000); // Every 5 seconds
+      
+      showAlert('Monitoring started! Real-time data incoming.', 'success');
+    }
+    
+    // Stop pickup process
+    function stopPickup() {
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const rfidStatus = document.getElementById('rfidStatus');
+      const dashboard = document.getElementById('monitoringDashboard');
+      
+      // Clear intervals
+      if (rfidInterval) {
+        clearInterval(rfidInterval);
+        rfidInterval = null;
+      }
+ if (rfidPollingInterval) {
+    clearInterval(rfidPollingInterval);
+    rfidPollingInterval = null;
+}
+      if (monitoringInterval) {
+        clearInterval(monitoringInterval);
+        monitoringInterval = null;
       }
       
+      // Reset UI
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      rfidStatus.className = 'rfid-status';
+      rfidStatus.innerHTML = '📡 Ready to scan RFID card...';
+      dashboard.classList.remove('show');
+      
+      isMonitoring = false;
+      
+
+const resultBox = document.getElementById('finalResultMessage');
+let violated = Object.entries(thresholdViolations)
+  .filter(([_, crossed]) => crossed)
+  .map(([key]) => key.charAt(0).toUpperCase() + key.slice(1));
+
+if (violated.length > 0) {
+  resultBox.innerHTML = `❌ <strong>Threshold crossed for:</strong> ${violated.join(', ')}`;
+  resultBox.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+} else {
+  resultBox.innerHTML = `✅ <strong>All parameters remained within safe range.</strong>`;
+  resultBox.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+}
+
+resultBox.style.display = 'block';
+
+// Reset tracking object
+thresholdViolations = {
+  temperature: false,
+  humidity: false,
+  shock: false,
+  light: false
+};
+
+      showAlert('Pickup stopped', 'success');
+
+// ✅ Update order status to 'Completed'
+async function updateOrderStatus(orderId) {
+  try {
+    const response = await fetch('https://retrack-website.onrender.com/lookup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'updateStatus',
+        orderId: orderId,
+        newStatus: 'Completed'
+      })
+    });
+
+    const result = await response.json();
+    console.log('Status update:', result);
+  } catch (err) {
+    console.error('Error updating status:', err);
+  }
+}
+updateOrderStatus(selectedOrder.orderId);
+
+    }
+    
+// Fetch data from ThingSpeak (continuation from line 576)
+    async function fetchThingSpeakData() {
       try {
-        document.getElementById('dropBtn').disabled = true;
-        showResult('Analyzing pickup data...', 'status-monitoring');
-        
-        const currentData = await fetchThingSpeak();
-        const classification = currentData.field5;
-        const shock = parseFloat(currentData.field3 || 0);
-        const light = parseFloat(currentData.field4 || 0);
-        
-        let finalDecision;
-        let statusClass;
-        
-        if (classification === 'Refundable' && shock < 50 && light < 50) {
-          finalDecision = 'REFUNDABLE';
-          statusClass = 'status-refundable';
-        } else {
-          finalDecision = 'EXCHANGE ONLY';
-          statusClass = 'status-exchange';
+        if (!THINGSPEAK_READ_API_KEY || !THINGSPEAK_CHANNEL_ID) {
+          // Generate simulated data for demo
+          const simulatedData = {
+            temperature: 20 + Math.random() * 15, // 20-35°C
+            humidity: 40 + Math.random() * 40,    // 40-80%
+            shock: Math.random() * 3,             // 0-3G
+            light: 50 + Math.random() * 950       // 50-1000 lux
+          };
+          updateDashboard(simulatedData);
+          return;
         }
         
-        showResult(`Final Decision: ${finalDecision}`, statusClass);
+        // Fetch from ThingSpeak API
+        const response = await fetch(`https://api.thingspeak.com/channels/${THINGSPEAK_CHANNEL_ID}/feeds.json?api_key=${THINGSPEAK_READ_API_KEY}&results=10`);
+        const data = await response.json();
         
-        // Reset buttons
-        document.getElementById('startBtn').disabled = false;
-        document.getElementById('dropBtn').disabled = true;
-        startData = null;
-        
-        // Log sensor data
-        console.log('Sensor Data:', {
-          classification,
-          shock,
-          light,
-          decision: finalDecision
-        });
+        if (data.feeds && data.feeds.length > 0) {
+          const latestData = data.feeds[data.feeds.length - 1];
+          const sensorData = {
+            temperature: parseFloat(latestData.field3) || 0,
+            humidity: parseFloat(latestData.field4) || 0,
+            shock: parseFloat(latestData.field5) || 0,
+            light: parseFloat(latestData.field6) || 0,
+            timestamp: latestData.created_at
+          };
+          updateDashboard(sensorData);
+          updateCharts(sensorData);
+        }
         
       } catch (error) {
-        console.error('Drop pickup error:', error);
-        showResult('Error analyzing pickup data', 'status-error');
-        document.getElementById('dropBtn').disabled = false;
+        console.error('Error fetching ThingSpeak data:', error);
+        // Fallback to simulated data
+        const simulatedData = {
+          temperature: 20 + Math.random() * 15,
+          humidity: 40 + Math.random() * 40,
+          shock: Math.random() * 3,
+          light: 50 + Math.random() * 950
+        };
+        updateDashboard(simulatedData);
       }
     }
     
-    function showResult(message, statusClass) {
-      const resultElement = document.getElementById('result');
-      resultElement.textContent = message;
-      resultElement.className = statusClass;
+    // Update dashboard values
+    function updateDashboard(data) {
+      document.getElementById('tempValue').textContent = `${data.temperature.toFixed(1)}°C`;
+      document.getElementById('humidityValue').textContent = `${data.humidity.toFixed(1)}%`;
+      document.getElementById('shockValue').textContent = `${data.shock.toFixed(2)}G`;
+      document.getElementById('lightValue').textContent = `${Math.round(data.light)} lux`;
+      
+      // Update chart colors based on values
+      updateValueColors(data);
     }
     
-    // Allow Enter key for order lookup
-    document.getElementById('orderIdInput').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        lookupOrder();
-      }
-    });
+    // Update value colors based on thresholds
+    function updateValueColors(data) {
+  const tempElement = document.getElementById('tempValue');
+  const humidityElement = document.getElementById('humidityValue');
+  const shockElement = document.getElementById('shockValue');
+  const lightElement = document.getElementById('lightValue');
+
+  // Temperature
+  if (data.temperature > 30) {
+    tempElement.style.color = '#ef4444';
+    thresholdViolations.temperature = true;
+  } else if (data.temperature < 10) {
+    tempElement.style.color = '#3b82f6';
+  } else {
+    tempElement.style.color = '#10b981';
+  }
+
+  // Humidity
+  if (data.humidity > 70 || data.humidity < 30) {
+    humidityElement.style.color = '#ef4444';
+    thresholdViolations.humidity = true;
+  } else {
+    humidityElement.style.color = '#10b981';
+  }
+
+  // Shock
+  if (data.shock === 1) {
+    shockElement.style.color = '#ef4444';
+    thresholdViolations.shock = true;
+  } else {
+    shockElement.style.color = '#10b981';
+  }
+
+  // Light
+  if (data.light > 800 || data.light < 100) {
+    lightElement.style.color = '#ef4444';
+    thresholdViolations.light = true;
+  } else {
+    lightElement.style.color = '#10b981';
+  }
+}
+
     
-    // Allow Enter key for RFID input
-    document.getElementById('rfid').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        if (!document.getElementById('startBtn').disabled) {
-          startPickup();
+    // Initialize charts
+   // Update the chartOptions object in initializeCharts() function
+  function initializeCharts() {
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  interaction: {
+    intersect: false,
+    mode: 'index'
+  },
+  scales: {
+    y: {
+      beginAtZero: false,
+      grid: {
+        color: 'rgba(0,0,0,0.1)',
+        drawBorder: false
+      },
+      ticks: {
+        font: {
+          size: 11
+        },
+        color: '#64748b'
+      }
+    },
+    x: {
+      grid: {
+        color: 'rgba(0,0,0,0.1)',
+        drawBorder: false
+      },
+      ticks: {
+        font: {
+          size: 10
+        },
+        color: '#64748b',
+        maxTicksLimit: 8
+      }
+    }
+  },
+  plugins: {
+    legend: {
+      display: false
+    },
+    tooltip: {
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      titleFont: {
+        size: 12
+      },
+      bodyFont: {
+        size: 11
+      },
+      cornerRadius: 8
+    }
+  },
+  elements: {
+    point: {
+      radius: 3,
+      hoverRadius: 5,
+      borderWidth: 2
+    },
+    line: {
+      borderWidth: 2,
+      tension: 0.4
+    }
+  }
+};
+      
+      // Temperature Chart
+      const tempCtx = document.getElementById('tempChart').getContext('2d');
+      charts.temperature = new Chart(tempCtx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            data: [],
+            borderColor: '#ff6b6b',
+            backgroundColor: 'rgba(255, 107, 107, 0.1)',
+            fill: true
+          }]
+        },
+        options: chartOptions
+      });
+      
+      // Humidity Chart
+      const humidityCtx = document.getElementById('humidityChart').getContext('2d');
+      charts.humidity = new Chart(humidityCtx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            data: [],
+            borderColor: '#74b9ff',
+            backgroundColor: 'rgba(116, 185, 255, 0.1)',
+            fill: true
+          }]
+        },
+        options: chartOptions
+      });
+      
+      // Shock Chart
+      const shockCtx = document.getElementById('shockChart').getContext('2d');
+      charts.shock = new Chart(shockCtx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            data: [],
+            borderColor: '#fdcb6e',
+            backgroundColor: 'rgba(253, 203, 110, 0.1)',
+            fill: true
+          }]
+        },
+        options: chartOptions
+      });
+      
+      // Light Chart
+      const lightCtx = document.getElementById('lightChart').getContext('2d');
+      charts.light = new Chart(lightCtx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            data: [],
+            borderColor: '#ffeaa7',
+            backgroundColor: 'rgba(255, 234, 167, 0.1)',
+            fill: true
+          }]
+        },
+        options: chartOptions
+      });
+}
+    
+    
+    // Update charts with new data
+    function updateCharts(data) {
+      const now = new Date();
+      const timeLabel = now.toLocaleTimeString();
+      
+      // Update each chart
+      Object.keys(charts).forEach(key => {
+        const chart = charts[key];
+        const dataset = chart.data.datasets[0];
+        
+        // Add new data point
+        chart.data.labels.push(timeLabel);
+        dataset.data.push(data[key]);
+        
+        // Keep only last 20 data points
+        if (chart.data.labels.length > 20) {
+          chart.data.labels.shift();
+          dataset.data.shift();
+        }
+        
+        // Update chart
+        chart.update('none');
+      });
+    }
+    
+    // Show alert notification
+    function showAlert(message, type) {
+      // Remove existing alert
+      const existingAlert = document.querySelector('.alert');
+      if (existingAlert) {
+        existingAlert.remove();
+      }
+      
+      // Create new alert
+      const alert = document.createElement('div');
+      alert.className = `alert ${type}`;
+      alert.textContent = message;
+      document.body.appendChild(alert);
+      
+      // Show alert
+      setTimeout(() => alert.classList.add('show'), 100);
+      
+      // Hide alert after 3 seconds
+      setTimeout(() => {
+        alert.classList.remove('show');
+        setTimeout(() => alert.remove(), 300);
+      }, 3000);
+    }
+    
+    // Refresh orders manually
+    function refreshOrders() {
+      const refreshBtn = document.querySelector('button[onclick="refreshOrders()"]');
+      const originalText = refreshBtn.textContent;
+      
+      refreshBtn.innerHTML = '<div class="loading-spinner"></div> Refreshing...';
+      refreshBtn.disabled = true;
+      
+      // Load orders
+      loadOrders().then(() => {
+        setTimeout(() => {
+          refreshBtn.innerHTML = originalText;
+          refreshBtn.disabled = false;
+          showAlert('Orders refreshed successfully!', 'success');
+        }, 1000);
+      });
+    }
+    
+    // Update order status (can be called externally)
+    function updateOrderStatus(orderId, newStatus) {
+      const orderElement = document.querySelector(`[data-order-id="${orderId}"]`);
+      if (orderElement) {
+        const statusElement = orderElement.querySelector('.order-status');
+        if (statusElement) {
+          statusElement.className = `order-status status-${newStatus.toLowerCase()}`;
+          statusElement.textContent = newStatus;
         }
       }
+      
+      // Update in data array
+      const order = ordersData.find(o => o.orderId === orderId);
+      if (order) {
+        order.status = newStatus;
+      }
+    }
+    
+    // Handle window resize for charts
+    window.addEventListener('resize', function() {
+      Object.values(charts).forEach(chart => {
+        if (chart) {
+          chart.resize();
+        }
+      });
     });
+    
+    // Handle page visibility change to pause/resume monitoring
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden && isMonitoring) {
+        // Page is hidden, pause monitoring
+        if (monitoringInterval) {
+          clearInterval(monitoringInterval);
+        }
+      } else if (!document.hidden && isMonitoring) {
+        // Page is visible, resume monitoring
+        fetchThingSpeakData();
+        monitoringInterval = setInterval(fetchThingSpeakData, 5000);
+      }
+    });
+    
   </script>
 </body>
 </html>
