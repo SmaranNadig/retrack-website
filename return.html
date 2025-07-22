@@ -6,13 +6,26 @@
   <title>Select Return Reason - ReTrack</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --primary-amber: #f59e0b;
+      --dark-amber: #d97706;
+      --darker-amber: #b45309;
+      --cream-light: #fefce8;
+      --cream-medium: #fef3c7;
+      --cream-dark: #fde68a;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --success-green: #22c55e;
+      --warning-amber: #f59e0b;
+    }
+
     * {
       margin: 0; padding: 0; box-sizing: border-box;
       font-family: 'Inter', sans-serif;
     }
     body {
-      background-color: #f3f4f6;
-      color: #1f2937;
+      background: linear-gradient(135deg, var(--cream-light) 0%, var(--cream-medium) 100%);
+      color: var(--text-primary);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -24,11 +37,11 @@
       font-size: 2.5rem;
       font-weight: 600;
       margin-bottom: 10px;
-      color: #2563eb;
+      color: var(--darker-amber);
     }
     p {
       font-size: 1.1rem;
-      color: #4b5563;
+      color: var(--text-secondary);
       margin-bottom: 30px;
       text-align: center;
     }
@@ -41,8 +54,8 @@
     }
     .btn {
       background: transparent;
-      border: 2px solid #2563eb;
-      color: #2563eb;
+      border: 2px solid var(--primary-amber);
+      color: var(--primary-amber);
       padding: 14px 24px;
       font-size: 1rem;
       border-radius: 8px;
@@ -52,7 +65,7 @@
       text-decoration: none;
     }
     .btn:hover {
-      background-color: #2563eb;
+      background-color: var(--primary-amber);
       color: white;
     }
   </style>
@@ -60,7 +73,6 @@
 <body>
   <h1>Select Return Reason</h1>
   <p>Choose the reason why you want to return the product.</p>
-
   <div class="button-container">
     <a href="broken-return.html" class="btn">Product is Broken</a>
     <a href="exchange-return.html" class="btn">Exchange the Product</a>
